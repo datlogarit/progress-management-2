@@ -1,0 +1,80 @@
+.app-header {
+  height: 70px;
+  background-color: #ffffff;
+  border-bottom: 1px solid var(--color-border);
+  padding: 0 32px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  box-shadow: 0 1px 3px rgba(15, 23, 42, 0.03);
+}
+
+.header-page-title {
+  font-size: 20px;
+  font-weight: 700;
+  color: var(--color-text-primary);
+}
+
+.header-user-section {
+  display: flex;
+  align-items: center;
+  gap: 20px;
+}
+
+.user-profile-badge {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 6px 12px;
+  background-color: var(--color-page-bg);
+  border-radius: 9999px;
+  border: 1px solid var(--color-border);
+}
+
+.user-avatar {
+  color: var(--color-accent);
+  display: flex;
+  align-items: center;
+}
+
+.user-info {
+  display: flex;
+  flex-direction: column;
+}
+
+.user-name {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--color-text-primary);
+}
+
+.user-role-tag {
+  font-size: 10px;
+  font-weight: 700;
+  color: var(--color-accent);
+  display: flex;
+  align-items: center;
+  gap: 3px;
+  text-transform: uppercase;
+}
+
+.logout-btn {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 14px;
+  border-radius: var(--radius-button);
+  background-color: #ffffff;
+  border: 1px solid var(--color-border);
+  color: var(--color-danger);
+  font-size: 13px;
+  font-weight: 600;
+  font-family: inherit;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.logout-btn:hover {
+  background-color: var(--color-danger-subtle);
+  border-color: rgba(220, 38, 38, 0.3);
+}
