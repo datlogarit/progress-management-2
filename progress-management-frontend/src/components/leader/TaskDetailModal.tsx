@@ -1,0 +1,242 @@
+import { useState, useEffect } from 'react';
+import type { TaskDTO, CommentDTO, TaskStatus } from '../../services/taskService';
+import type { UserDTO } from '../../services/authService';
+import { 
+  getTaskCommentsApi, 
+  addCommentApi, 
+  updateTaskStatusApi, 
+  assignTaskApi 
+} from '../../services/taskService';
+import { Modal } from '../Modal';
+import { 
+  Calendar, 
+  User as UserIcon, 
+  Building2, 
+  Send, 
+  Clock, 
+  CheckCircle2, 
+  AlertCircle, 
+  XCircle,
+  MessageSquare
+} from 'lucide-react';
+import './TaskDetailModal.css';
+
+interface TaskDetailModalProps {
+  isOpen: boolean;
+  onClose: () => void;
+  task: TaskDTO | null;
+  departmentMembers: UserDTO[];
+  onTaskUpdated?: (updatedTask: TaskDTO) => void;
+}
+
+export function TaskDetailModal({
+  isOpen,
+  onClose,
+  task,
+  departmentMembers,
+  onTaskUpdated,
+}: TaskDetailModalProps) {
+  const [currentTask, setCurrentTask] = useState<TaskDTO | null>(task);
+  const [comments, setComments] = useState<CommentDTO[]>([]);
+  const [newComment, setNewComment] = useState('');
+  const [loadingComments, setLoadingComments] = useState(false);
+  const [sendingComment, setSendingComment] = useState(false);
+  const [actionError, setActionError] = useState<string | null>(null);
+
+  useEffect(() => {
+    setCurrentTask(task);
+    if (task && isOpen) {
+      loadComments(task.id);
+    } else {
+      setComments([]);
+    }
+  }, [task, isOpen]);
+
+  const loadComments = async (taskId: number) => {
+    setLoadingComments(true);
+    try {
+      const data = await getTaskCommentsApi(taskId);
+      setComments(data);
+    } catch (err) {
+      console.error('Failed to load comments', err);
+    } finally {
+      setLoadingComments(false);
+    }
+  };
+
+  const handleStatusChange = async (newStatus: TaskStatus) => {
+    if (!currentTask) return;
+    setActionError(null);
+    try {
+      const updated = await updateTaskStatusApi(currentTask.id, newStatus);
+      setCurrentTask(updated);
+      if (onTaskUpdated) onTaskUpdated(updated);
+    } catch (err: any) {
+      setActionError(err.message || 'Không thể đổi trạng thái');
+    }
+  };
+
+  const handleAssigneeChange = async (e: React.ChangeEvent<HTMLSelectElement>) => {
+    if (!currentTask) return;
+    const assigneeId = e.target.value ? Number(e.target.value) : null;
+    if (!assigneeId) return;
+
+    setActionError(null);
+    try {
+      const updated = await assignTaskApi(currentTask.id, assigneeId);
+      setCurrentTask(updated);
+      if (onTaskUpdated) onTaskUpdated(updated);
+    } catch (err: any) {
+      setActionError(err.message || 'Không thể phân công việc');
+    }
+  };
+
+  const handleSendComment = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!currentTask || !newComment.trim()) return;
+
+    setSendingComment(true);
+    setActionError(null);
+    try {
+      const created = await addCommentApi(currentTask.id, newComment.trim());
+      setComments((prev) => [...prev, created]);
+      setNewComment('');
+    } catch (err: any) {
+      setActionError(err.message || 'Không thể gửi bình luận');
+    } finally {
+      setSendingComment(false);
+    }
+  };
+
+  if (!currentTask) return null;
+
+  return (
+    <Modal isOpen={isOpen} onClose={onClose} title="Chi tiết Công việc & Thảo luận">
+      <div className="task-detail-container">
+        {actionError && <div className="detail-error-alert">{actionError}</div>}
+
+        {/* Task Core Info */}
+        <div className="detail-header-card">
+          <h2 className="detail-title">{currentTask.title}</h2>
+
+          <div className="detail-meta-grid">
+            <div className="meta-item">
+              <span className="meta-label">Trạng thái:</span>
+              <div className="status-selector-group">
+                <button
+                  className={`status-btn pending ${currentTask.status === 'PENDING' ? 'active' : ''}`}
+                  onClick={() => handleStatusChange('PENDING')}
+                >
+                  <AlertCircle size={12} /> Chưa làm
+                </button>
+                <button
+                  className={`status-btn in-progress ${currentTask.status === 'IN_PROGRESS' ? 'active' : ''}`}
+                  onClick={() => handleStatusChange('IN_PROGRESS')}
+                >
+                  <Clock size={12} /> Đang làm
+                </button>
+                <button
+                  className={`status-btn completed ${currentTask.status === 'COMPLETED' ? 'active' : ''}`}
+                  onClick={() => handleStatusChange('COMPLETED')}
+                >
+                  <CheckCircle2 size={12} /> Hoàn thành
+                </button>
+              </div>
+            </div>
+
+            <div className="meta-item">
+              <span className="meta-label">Người được giao:</span>
+              <select
+                className="assignee-select"
+                value={currentTask.assignee ? currentTask.assignee.id : ''}
+                onChange={handleAssigneeChange}
+              >
+                <option value="">-- Chưa giao --</option>
+                {departmentMembers.map((m) => (
+                  <option key={m.id} value={m.id}>
+                    {m.fullName} ({m.username})
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            <div className="meta-item">
+              <span className="meta-label">Người tạo task:</span>
+              <span className="meta-value">
+                <UserIcon size={14} /> {currentTask.createdBy.fullName}
+              </span>
+            </div>
+
+            <div className="meta-item">
+              <span className="meta-label">Phòng ban:</span>
+              <span className="meta-value">
+                <Building2 size={14} /> {currentTask.departmentName}
+              </span>
+            </div>
+
+            {currentTask.dueDate && (
+              <div className="meta-item">
+                <span className="meta-label">Hạn hoàn thành:</span>
+                <span className="meta-value">
+                  <Calendar size={14} /> {new Date(currentTask.dueDate).toLocaleString('vi-VN')}
+                </span>
+              </div>
+            )}
+          </div>
+
+          {currentTask.description && (
+            <div className="detail-description">
+              <div className="description-label">Mô tả công việc:</div>
+              <p className="description-text">{currentTask.description}</p>
+            </div>
+          )}
+        </div>
+
+        {/* Discussion Section */}
+        <div className="discussion-section">
+          <h3 className="discussion-heading">
+            <MessageSquare size={18} /> Trao đổi & Thảo luận ({comments.length})
+          </h3>
+
+          <div className="comments-timeline">
+            {loadingComments ? (
+              <p className="comments-loading">Đang tải bình luận...</p>
+            ) : comments.length === 0 ? (
+              <p className="comments-empty">Chưa có bình luận nào. Hãy gửi bình luận đầu tiên!</p>
+            ) : (
+              comments.map((comment) => (
+                <div key={comment.id} className="comment-bubble">
+                  <div className="comment-header">
+                    <span className="comment-author">{comment.user.fullName}</span>
+                    <span className="comment-time">
+                      {new Date(comment.createdAt).toLocaleString('vi-VN')}
+                    </span>
+                  </div>
+                  <div className="comment-body">{comment.content}</div>
+                </div>
+              ))
+            )}
+          </div>
+
+          <form onSubmit={handleSendComment} className="comment-input-form">
+            <input
+              type="text"
+              className="comment-input"
+              placeholder="Nhập nội dung trao đổi..."
+              value={newComment}
+              onChange={(e) => setNewComment(e.target.value)}
+              disabled={sendingComment}
+            />
+            <button
+              type="submit"
+              className="send-comment-btn"
+              disabled={sendingComment || !newComment.trim()}
+            >
+              <Send size={16} /> Gửi
+            </button>
+          </form>
+        </div>
+      </div>
+    </Modal>
+  );
+}

@@ -64,6 +64,16 @@ Nếu dự án lớn (nhiều bounded context), có thể tổ chức theo **fea
 - Trả về `ResponseEntity<T>` với status code rõ ràng (`200 OK`, `201 Created` kèm `Location` header, `204 No Content` khi xóa, `400/404/409` cho lỗi nghiệp vụ).
 - DTO tách biệt hoàn toàn khỏi Entity — không bao giờ trả Entity trực tiếp ra API (rò rỉ cấu trúc DB, vấn đề lazy-loading, khó version hóa API).
 
+### 3.1. Tổ chức Controller theo Entity (ưu tiên mặc định)
+
+- **Ưu tiên tạo một Controller riêng cho mỗi Entity/aggregate root chính** trong domain (ví dụ: `User` → `UserController`, `Order` → `OrderController`, `Product` → `ProductController`), thay vì gom nhiều entity không liên quan vào chung một controller lớn.
+- Tên Controller và base path phải khớp trực tiếp với Entity mà nó quản lý: `UserController` ↔ `@RequestMapping("/api/v1/users")`, `OrderController` ↔ `@RequestMapping("/api/v1/orders")`.
+- Endpoint được phân bổ vào Controller dựa trên **entity mà endpoint đó thao tác chính (chủ thể chính của response/URL)**, không dựa theo màn hình UI hay theo tính năng chung chung. Ví dụ: endpoint lấy danh sách đơn hàng của một user (`GET /api/v1/users/{userId}/orders`) vẫn có thể đặt ở `OrderController` (vì response trả về là `Order`), dùng `userId` như path param lọc, thay vì nhét vào `UserController`.
+- Với entity con phụ thuộc chặt vào entity cha (ví dụ `OrderItem` chỉ tồn tại trong ngữ cảnh của `Order`, không có vòng đời độc lập), có thể gộp endpoint quản lý entity con vào chung Controller của entity cha dưới dạng nested path (`/api/v1/orders/{orderId}/items`) thay vì tạo controller riêng — tránh tạo controller quá nhỏ, rời rạc.
+- Không tạo một Controller "tổng hợp" (ví dụ `ApiController`, `CommonController`, `MainController`) chứa endpoint của nhiều entity không liên quan — vi phạm nguyên tắc single responsibility, khó maintain và khó review về sau.
+- Nếu một nghiệp vụ cần orchestration nhiều entity (ví dụ "checkout" động chạm `Order`, `Payment`, `Inventory`), cân nhắc tạo controller riêng theo **use case** (`CheckoutController`) thay vì gán bừa vào một trong các entity controller — nhưng đây là ngoại lệ, không phải mặc định, và logic orchestration vẫn phải nằm ở service layer, controller chỉ gọi xuống.
+- Khi review code, nếu phát hiện một Controller có endpoint thao tác trên nhiều entity không liên quan hệ cha-con, đề xuất tách thành các Controller riêng theo entity tương ứng.
+
 ```java
 @RestController
 @RequestMapping("/api/v1/users")
@@ -217,5 +227,6 @@ Khi được yêu cầu review, kiểm tra theo thứ tự ưu tiên:
 6. Naming có rõ nghĩa, nhất quán không?
 7. SQL injection risk (native query/JPQL nối chuỗi trực tiếp từ input)?
 8. Có unit test cho logic quan trọng không?
+9. Controller có được tổ chức đúng theo entity không (xem mục 3.1) — có controller nào gộp nhiều entity không liên quan, hoặc endpoint đặt sai controller không?
 
 Chỉ ra vấn đề cụ thể kèm dòng/đoạn code, đề xuất sửa theo convention ở trên — không chỉ nói chung chung "chưa chuẩn".

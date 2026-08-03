@@ -5,6 +5,9 @@ import LoginPage from './pages/LoginPage';
 import { AdminDashboardPage } from './pages/admin/AdminDashboardPage';
 import { UserManagementPage } from './pages/admin/UserManagementPage';
 import { DepartmentManagementPage } from './pages/admin/DepartmentManagementPage';
+import { LeaderDashboardPage } from './pages/leader/LeaderDashboardPage';
+import { LeaderTaskManagementPage } from './pages/leader/LeaderTaskManagementPage';
+import { LeaderTeamPage } from './pages/leader/LeaderTeamPage';
 import './index.css';
 
 interface ProtectedRouteProps {
@@ -28,11 +31,13 @@ function ProtectedRoute({ children, allowedRoles }: ProtectedRouteProps) {
   }
 
   if (allowedRoles && user && !allowedRoles.includes(user.role)) {
-    // If not authorized for this role, redirect based on user role
     if (user.role === 'ADMIN') {
       return <Navigate to="/admin/dashboard" replace />;
     }
-    return <Navigate to="/" replace />;
+    if (user.role === 'LEADER') {
+      return <Navigate to="/leader/dashboard" replace />;
+    }
+    return <Navigate to="/leader/tasks" replace />;
   }
 
   return <>{children}</>;
@@ -44,20 +49,10 @@ function RootRedirect() {
   if (user?.role === 'ADMIN') {
     return <Navigate to="/admin/dashboard" replace />;
   }
-
-  // Placeholder for LEADER / EMPLOYEE dashboard view
-  return (
-    <div style={{ padding: '40px', maxWidth: '800px', margin: '0 auto', fontFamily: 'var(--font-family-base)' }}>
-      <div style={{ background: '#fff', padding: '32px', borderRadius: '12px', boxShadow: 'var(--shadow-card)', border: '1px solid var(--color-border)' }}>
-        <h1 style={{ fontSize: '24px', fontWeight: 'bold', color: 'var(--color-text-primary)', marginBottom: '8px' }}>
-          Chào mừng, {user?.fullName}!
-        </h1>
-        <p style={{ color: 'var(--color-text-secondary)' }}>
-          Tài khoản: <strong>{user?.username}</strong> | Vai trò: <strong>{user?.role}</strong> | Phòng ban: {user?.departmentName || 'Chưa gán'}
-        </p>
-      </div>
-    </div>
-  );
+  if (user?.role === 'LEADER') {
+    return <Navigate to="/leader/dashboard" replace />;
+  }
+  return <Navigate to="/leader/tasks" replace />;
 }
 
 function App() {
@@ -99,6 +94,32 @@ function App() {
             element={
               <ProtectedRoute allowedRoles={['ADMIN']}>
                 <DepartmentManagementPage />
+              </ProtectedRoute>
+            }
+          />
+
+          {/* Leader & Team Routes */}
+          <Route
+            path="/leader/dashboard"
+            element={
+              <ProtectedRoute allowedRoles={['LEADER', 'ADMIN']}>
+                <LeaderDashboardPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/leader/tasks"
+            element={
+              <ProtectedRoute allowedRoles={['LEADER', 'EMPLOYEE', 'ADMIN']}>
+                <LeaderTaskManagementPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/leader/team"
+            element={
+              <ProtectedRoute allowedRoles={['LEADER', 'ADMIN']}>
+                <LeaderTeamPage />
               </ProtectedRoute>
             }
           />
