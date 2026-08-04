@@ -26,4 +26,6 @@ public class UpdateUserRequest {
 
     @NotNull(message = "IsActive status is required")
     private Boolean isActive;
+
+    private Long reassignToUserId;
 }

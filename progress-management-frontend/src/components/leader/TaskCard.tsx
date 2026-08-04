@@ -8,8 +8,7 @@ import {
   CheckCircle2, 
   AlertCircle, 
   XCircle,
-  Edit2,
-  Trash2
+  Edit2
 } from 'lucide-react';
 import { useState, useRef, useEffect } from 'react';
 import './TaskCard.css';
@@ -18,11 +17,11 @@ interface TaskCardProps {
   task: TaskDTO;
   onViewDetail: (task: TaskDTO) => void;
   onEdit?: (task: TaskDTO) => void;
-  onDelete?: (task: TaskDTO) => void;
+  onCancel?: (task: TaskDTO) => void;
   onStatusChange?: (taskId: number, status: TaskStatus) => void;
 }
 
-export function TaskCard({ task, onViewDetail, onEdit, onDelete, onStatusChange }: TaskCardProps) {
+export function TaskCard({ task, onViewDetail, onEdit, onCancel, onStatusChange }: TaskCardProps) {
   const [showMenu, setShowMenu] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
 
@@ -83,7 +82,7 @@ export function TaskCard({ task, onViewDetail, onEdit, onDelete, onStatusChange 
   const isOverdue = task.dueDate && new Date(task.dueDate) < new Date() && task.status !== 'COMPLETED' && task.status !== 'CANCELLED';
 
   return (
-    <div className={`task-card ${isOverdue ? 'overdue' : ''}`}>
+    <div className={`task-card ${isOverdue ? 'overdue' : ''} ${showMenu ? 'has-open-menu' : ''}`}>
       <div className="task-card-header">
         <div className="status-priority-group">
           {getStatusBadge(task.status)}
@@ -144,7 +143,7 @@ export function TaskCard({ task, onViewDetail, onEdit, onDelete, onStatusChange 
                   )}
                 </>
               )}
-              {onDelete && (
+              {onCancel && task.status !== 'CANCELLED' && (
                 <>
                   <div className="menu-divider" />
                   <button 
@@ -152,10 +151,10 @@ export function TaskCard({ task, onViewDetail, onEdit, onDelete, onStatusChange 
                     onClick={(e) => {
                       e.stopPropagation();
                       setShowMenu(false);
-                      onDelete(task);
+                      onCancel(task);
                     }}
                   >
-                    <Trash2 size={14} /> Xóa task
+                    <XCircle size={14} /> Hủy task
                   </button>
                 </>
               )}

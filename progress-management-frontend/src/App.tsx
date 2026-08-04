@@ -8,6 +8,8 @@ import { DepartmentManagementPage } from './pages/admin/DepartmentManagementPage
 import { LeaderDashboardPage } from './pages/leader/LeaderDashboardPage';
 import { LeaderTaskManagementPage } from './pages/leader/LeaderTaskManagementPage';
 import { LeaderTeamPage } from './pages/leader/LeaderTeamPage';
+import { EmployeeDashboardPage } from './pages/employee/EmployeeDashboardPage';
+import { EmployeeTasksPage } from './pages/employee/EmployeeTasksPage';
 import './index.css';
 
 interface ProtectedRouteProps {
@@ -37,7 +39,7 @@ function ProtectedRoute({ children, allowedRoles }: ProtectedRouteProps) {
     if (user.role === 'LEADER') {
       return <Navigate to="/leader/dashboard" replace />;
     }
-    return <Navigate to="/leader/tasks" replace />;
+    return <Navigate to="/employee/dashboard" replace />;
   }
 
   return <>{children}</>;
@@ -52,7 +54,7 @@ function RootRedirect() {
   if (user?.role === 'LEADER') {
     return <Navigate to="/leader/dashboard" replace />;
   }
-  return <Navigate to="/leader/tasks" replace />;
+  return <Navigate to="/employee/dashboard" replace />;
 }
 
 function App() {
@@ -102,7 +104,7 @@ function App() {
           <Route
             path="/leader/dashboard"
             element={
-              <ProtectedRoute allowedRoles={['LEADER', 'ADMIN']}>
+              <ProtectedRoute allowedRoles={['LEADER']}>
                 <LeaderDashboardPage />
               </ProtectedRoute>
             }
@@ -110,7 +112,7 @@ function App() {
           <Route
             path="/leader/tasks"
             element={
-              <ProtectedRoute allowedRoles={['LEADER', 'EMPLOYEE', 'ADMIN']}>
+              <ProtectedRoute allowedRoles={['LEADER']}>
                 <LeaderTaskManagementPage />
               </ProtectedRoute>
             }
@@ -118,8 +120,26 @@ function App() {
           <Route
             path="/leader/team"
             element={
-              <ProtectedRoute allowedRoles={['LEADER', 'ADMIN']}>
+              <ProtectedRoute allowedRoles={['LEADER']}>
                 <LeaderTeamPage />
+              </ProtectedRoute>
+            }
+          />
+
+          {/* Employee Routes */}
+          <Route
+            path="/employee/dashboard"
+            element={
+              <ProtectedRoute allowedRoles={['EMPLOYEE']}>
+                <EmployeeDashboardPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/employee/tasks"
+            element={
+              <ProtectedRoute allowedRoles={['EMPLOYEE']}>
+                <EmployeeTasksPage />
               </ProtectedRoute>
             }
           />

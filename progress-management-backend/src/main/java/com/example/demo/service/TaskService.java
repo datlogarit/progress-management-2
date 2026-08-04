@@ -24,5 +24,7 @@ public interface TaskService {
 
     List<TaskResponse> getTasks(Long departmentId, Long assigneeId, TaskStatus status, UserPrincipal currentUser);
 
+    List<TaskResponse> getMyTasks(TaskStatus status, UserPrincipal currentUser);
+
     void deleteTask(Long id, UserPrincipal currentUser);
 }

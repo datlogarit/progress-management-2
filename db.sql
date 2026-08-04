@@ -52,7 +52,9 @@ CREATE TABLE tasks (
     department_id  INT NOT NULL REFERENCES departments(id) ON DELETE CASCADE,
     created_by     INT NOT NULL REFERENCES users(id) ON DELETE RESTRICT,   -- Leader tạo task
     assigned_to    INT REFERENCES users(id) ON DELETE SET NULL,            -- Employee được gán
-    status         task_status_enum NOT NULL DEFAULT 'TODO',
+    status         VARCHAR(50) NOT NULL DEFAULT 'PENDING',
+    priority       VARCHAR(50) NOT NULL DEFAULT 'MEDIUM',
+    due_date       TIMESTAMP,
     created_at     TIMESTAMP NOT NULL DEFAULT NOW(),
     updated_at     TIMESTAMP NOT NULL DEFAULT NOW()
 );
@@ -86,7 +88,7 @@ CREATE INDEX idx_comments_user_id ON comments(user_id);
 CREATE TABLE notifications (
     id          SERIAL PRIMARY KEY,
     user_id     INT NOT NULL REFERENCES users(id) ON DELETE CASCADE,   -- người nhận
-    type        notification_type_enum NOT NULL,
+    type        VARCHAR(50) NOT NULL,
     task_id     INT REFERENCES tasks(id) ON DELETE CASCADE,
     comment_id  INT REFERENCES comments(id) ON DELETE CASCADE,
     message     VARCHAR(255) NOT NULL,

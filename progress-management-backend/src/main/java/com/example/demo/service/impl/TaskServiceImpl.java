@@ -28,6 +28,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.stream.Collectors;
 
@@ -65,6 +66,10 @@ public class TaskServiceImpl implements TaskService {
         // Check permission: Leader can only create tasks for their department (Admin can create anywhere)
         validateDepartmentPermission(creator, department.getId());
 
+        if (request.getDueDate() != null && request.getDueDate().isBefore(LocalDateTime.now())) {
+            throw new CustomException("Hạn hoàn thành phải ở thời điểm trong tương lai (sau thời điểm hiện tại)", HttpStatus.BAD_REQUEST, "INVALID_DUE_DATE");
+        }
+
         User assignee = null;
         if (request.getAssigneeId() != null) {
             assignee = userRepository.findById(request.getAssigneeId())
@@ -73,6 +78,10 @@ public class TaskServiceImpl implements TaskService {
             // Assignee must belong to the department
             if (assignee.getDepartment() == null || !assignee.getDepartment().getId().equals(department.getId())) {
                 throw new CustomException("Assignee does not belong to the target department", HttpStatus.BAD_REQUEST, "INVALID_ASSIGNEE");
+            }
+
+            if (assignee.getRole() != RoleEnum.EMPLOYEE) {
+                throw new CustomException("Chỉ được giao công việc cho Nhân viên (role EMPLOYEE)", HttpStatus.BAD_REQUEST, "INVALID_ASSIGNEE");
             }
         }
 
@@ -116,6 +125,10 @@ public class TaskServiceImpl implements TaskService {
 
         validateDepartmentPermission(user, task.getDepartment().getId());
 
+        if (request.getDueDate() != null && request.getDueDate().isBefore(LocalDateTime.now())) {
+            throw new CustomException("Hạn hoàn thành phải ở thời điểm trong tương lai (sau thời điểm hiện tại)", HttpStatus.BAD_REQUEST, "INVALID_DUE_DATE");
+        }
+
         task.setTitle(request.getTitle().trim());
         task.setDescription(request.getDescription() != null ? request.getDescription().trim() : null);
 
@@ -138,6 +151,10 @@ public class TaskServiceImpl implements TaskService {
 
                 if (newAssignee.getDepartment() == null || !newAssignee.getDepartment().getId().equals(task.getDepartment().getId())) {
                     throw new CustomException("Assignee does not belong to the task's department", HttpStatus.BAD_REQUEST, "INVALID_ASSIGNEE");
+                }
+
+                if (newAssignee.getRole() != RoleEnum.EMPLOYEE) {
+                    throw new CustomException("Chỉ được giao công việc cho Nhân viên (role EMPLOYEE)", HttpStatus.BAD_REQUEST, "INVALID_ASSIGNEE");
                 }
 
                 task.setAssignee(newAssignee);
@@ -175,6 +192,10 @@ public class TaskServiceImpl implements TaskService {
             throw new CustomException("Assignee does not belong to the task's department", HttpStatus.BAD_REQUEST, "INVALID_ASSIGNEE");
         }
 
+        if (assignee.getRole() != RoleEnum.EMPLOYEE) {
+            throw new CustomException("Chỉ được giao công việc cho Nhân viên (role EMPLOYEE)", HttpStatus.BAD_REQUEST, "INVALID_ASSIGNEE");
+        }
+
         task.setAssignee(assignee);
         Task updatedTask = taskRepository.save(task);
 
@@ -200,14 +221,17 @@ public class TaskServiceImpl implements TaskService {
         User user = userRepository.findById(currentUser.getId())
                 .orElseThrow(() -> new ResourceNotFoundException("User not found with id: " + currentUser.getId()));
 
-        // User must be creator, assignee, leader of department, or Admin
         boolean isCreator = task.getCreatedBy().getId().equals(user.getId());
         boolean isAssignee = task.getAssignee() != null && task.getAssignee().getId().equals(user.getId());
         boolean isAdmin = user.getRole() == RoleEnum.ADMIN;
-        boolean isLeader = user.getRole() == RoleEnum.LEADER && user.getDepartment() != null && user.getDepartment().getId().equals(task.getDepartment().getId());
+        boolean isLeader = user.getRole() == RoleEnum.LEADER;
 
-        if (!isCreator && !isAssignee && !isAdmin && !isLeader) {
-            throw new UnauthorizedException("You do not have permission to update status of this task");
+        if (isLeader && !isAssignee && request.getStatus() != TaskStatus.CANCELLED) {
+            throw new UnauthorizedException("Trưởng phòng chỉ có quyền hủy công việc, không được chuyển các trạng thái thực hiện khác.");
+        }
+
+        if (!isAssignee && !isAdmin && !(isLeader && request.getStatus() == TaskStatus.CANCELLED)) {
+            throw new UnauthorizedException("Bạn không có quyền cập nhật trạng thái công việc này");
         }
 
         TaskStatus oldStatus = task.getStatus();
@@ -281,7 +305,11 @@ public class TaskServiceImpl implements TaskService {
         }
 
         List<Task> tasks;
-        if (deptIdToSearch != null && status != null) {
+        if (deptIdToSearch != null && assigneeId != null && status != null) {
+            tasks = taskRepository.findByDepartmentIdAndAssigneeIdAndStatus(deptIdToSearch, assigneeId, status);
+        } else if (deptIdToSearch != null && assigneeId != null) {
+            tasks = taskRepository.findByDepartmentIdAndAssigneeId(deptIdToSearch, assigneeId);
+        } else if (deptIdToSearch != null && status != null) {
             tasks = taskRepository.findByDepartmentIdAndStatus(deptIdToSearch, status);
         } else if (deptIdToSearch != null) {
             tasks = taskRepository.findByDepartmentId(deptIdToSearch);
@@ -293,6 +321,21 @@ public class TaskServiceImpl implements TaskService {
             tasks = taskRepository.findAll();
         }
 
+        return tasks.stream()
+                .map(this::mapToTaskResponse)
+                .collect(Collectors.toList());
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public List<TaskResponse> getMyTasks(TaskStatus status, UserPrincipal currentUser) {
+        log.info("Fetching assigned tasks for user id: {}, status: {}", currentUser.getId(), status);
+        List<Task> tasks;
+        if (status != null) {
+            tasks = taskRepository.findByAssigneeIdAndStatus(currentUser.getId(), status);
+        } else {
+            tasks = taskRepository.findByAssigneeId(currentUser.getId());
+        }
         return tasks.stream()
                 .map(this::mapToTaskResponse)
                 .collect(Collectors.toList());

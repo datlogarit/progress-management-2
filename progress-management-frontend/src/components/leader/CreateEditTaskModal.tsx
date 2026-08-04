@@ -47,11 +47,29 @@ export function CreateEditTaskModal({
     setError(null);
   }, [initialTask, isOpen]);
 
+  const getMinDateTime = () => {
+    const now = new Date();
+    const year = now.getFullYear();
+    const month = String(now.getMonth() + 1).padStart(2, '0');
+    const day = String(now.getDate()).padStart(2, '0');
+    const hours = String(now.getHours()).padStart(2, '0');
+    const minutes = String(now.getMinutes()).padStart(2, '0');
+    return `${year}-${month}-${day}T${hours}:${minutes}`;
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!title.trim()) {
       setError('Vui lòng nhập tiêu đề công việc');
       return;
+    }
+
+    if (dueDate) {
+      const selectedTime = new Date(dueDate).getTime();
+      if (selectedTime <= Date.now()) {
+        setError('Hạn hoàn thành phải ở thời điểm trong tương lai (sau thời điểm hiện tại)');
+        return;
+      }
     }
 
     setLoading(true);
@@ -91,7 +109,7 @@ export function CreateEditTaskModal({
             placeholder="Ví dụ: Thiết kế cơ sở dữ liệu module Báo cáo"
             value={title}
             onChange={(e) => setTitle(e.target.value)}
-            disabled={loading}
+            disabled={loading || Boolean(initialTask)}
           />
         </div>
 
@@ -104,7 +122,7 @@ export function CreateEditTaskModal({
             placeholder="Mô tả chi tiết các yêu cầu, kết quả cần đạt..."
             value={description}
             onChange={(e) => setDescription(e.target.value)}
-            disabled={loading}
+            disabled={loading || Boolean(initialTask)}
           />
         </div>
 
@@ -116,7 +134,7 @@ export function CreateEditTaskModal({
               className="form-control"
               value={priority}
               onChange={(e) => setPriority(e.target.value as TaskPriority)}
-              disabled={loading}
+              disabled={loading || Boolean(initialTask)}
             >
               <option value="LOW">Thấp</option>
               <option value="MEDIUM">Trung bình</option>
@@ -133,7 +151,7 @@ export function CreateEditTaskModal({
                 className="form-control"
                 value={status}
                 onChange={(e) => setStatus(e.target.value as TaskStatus)}
-                disabled={loading}
+                disabled={loading || Boolean(initialTask)}
               >
                 <option value="PENDING">Chưa làm</option>
                 <option value="IN_PROGRESS">Đang làm</option>
@@ -154,12 +172,14 @@ export function CreateEditTaskModal({
               onChange={(e) => setAssigneeId(e.target.value)}
               disabled={loading}
             >
-              <option value="">-- Chưa phân công --</option>
-              {departmentMembers.map((member) => (
-                <option key={member.id} value={member.id}>
-                  {member.fullName} ({member.username}) - {member.role}
-                </option>
-              ))}
+              <option value="">-- Chọn nhân viên thực hiện --</option>
+              {departmentMembers
+                .filter((member) => member.role === 'EMPLOYEE')
+                .map((member) => (
+                  <option key={member.id} value={member.id}>
+                    {member.fullName} (@{member.username})
+                  </option>
+                ))}
             </select>
           </div>
 
@@ -169,6 +189,7 @@ export function CreateEditTaskModal({
               id="task-duedate"
               type="datetime-local"
               className="form-control"
+              min={getMinDateTime()}
               value={dueDate}
               onChange={(e) => setDueDate(e.target.value)}
               disabled={loading}

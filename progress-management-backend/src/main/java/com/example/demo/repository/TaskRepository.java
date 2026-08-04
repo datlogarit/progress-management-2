@@ -20,4 +20,8 @@ public interface TaskRepository extends JpaRepository<Task, Long>, JpaSpecificat
     List<Task> findByAssigneeId(Long assigneeId);
 
     List<Task> findByAssigneeIdAndStatus(Long assigneeId, TaskStatus status);
+
+    List<Task> findByDepartmentIdAndAssigneeId(Long departmentId, Long assigneeId);
+
+    List<Task> findByDepartmentIdAndAssigneeIdAndStatus(Long departmentId, Long assigneeId, TaskStatus status);
 }

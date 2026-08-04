@@ -82,20 +82,22 @@ export function LeaderTeamPage() {
                       <Mail size={14} /> {member.email}
                     </div>
 
-                    <div className="workload-summary-box">
-                      <div className="summary-title">Tải lượng công việc:</div>
-                      <div className="summary-stats">
-                        <div className="stat-pill pending">
-                          <AlertCircle size={12} /> {pending} chưa làm
-                        </div>
-                        <div className="stat-pill in-progress">
-                          <Clock size={12} /> {inProgress} đang làm
-                        </div>
-                        <div className="stat-pill completed">
-                          <CheckCircle2 size={12} /> {completed} xong
+                    {member.role === 'EMPLOYEE' && (
+                      <div className="workload-summary-box">
+                        <div className="summary-title">Tải lượng công việc:</div>
+                        <div className="summary-stats">
+                          <div className="stat-pill pending">
+                            <AlertCircle size={12} /> {pending} chưa làm
+                          </div>
+                          <div className="stat-pill in-progress">
+                            <Clock size={12} /> {inProgress} đang làm
+                          </div>
+                          <div className="stat-pill completed">
+                            <CheckCircle2 size={12} /> {completed} xong
+                          </div>
                         </div>
                       </div>
-                    </div>
+                    )}
                   </div>
                 );
               })}

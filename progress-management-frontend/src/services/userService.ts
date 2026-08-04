@@ -1,4 +1,5 @@
 import type { UserDTO } from './authService';
+export type { UserDTO };
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || '/api/v1';
 
@@ -23,6 +24,7 @@ export interface UpdateUserParams {
   email: string;
   fullName: string;
   isActive: boolean;
+  reassignToUserId?: number | null;
 }
 
 export interface ResetPasswordParams {
@@ -31,6 +33,7 @@ export interface ResetPasswordParams {
 
 export interface AssignRoleParams {
   role: 'ADMIN' | 'LEADER' | 'EMPLOYEE';
+  reassignToUserId?: number | null;
 }
 
 export interface AssignDepartmentParams {
@@ -137,8 +140,12 @@ export async function assignDepartmentApi(id: number, params: AssignDepartmentPa
   return data;
 }
 
-export async function deleteUserApi(id: number): Promise<void> {
-  const response = await fetch(`${API_BASE_URL}/users/${id}`, {
+export async function deleteUserApi(id: number, reassignToUserId?: number | null): Promise<void> {
+  const url = reassignToUserId 
+    ? `${API_BASE_URL}/users/${id}?reassignToUserId=${reassignToUserId}` 
+    : `${API_BASE_URL}/users/${id}`;
+
+  const response = await fetch(url, {
     method: 'DELETE',
     headers: getAuthHeaders(),
   });

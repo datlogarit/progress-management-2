@@ -60,7 +60,7 @@ export function Sidebar() {
           </>
         )}
 
-        {(isLeader || isAdmin) && (
+        {isLeader && (
           <>
             <div className="nav-section-title">QUẢN LÝ PHÒNG BAN</div>
             <NavLink 
@@ -85,6 +85,28 @@ export function Sidebar() {
             >
               <UserCheck size={18} className="nav-icon" />
               <span>Thành viên Nhóm</span>
+            </NavLink>
+          </>
+        )}
+
+        {/* Employee Section */}
+        {(!isAdmin && !isLeader) && (
+          <>
+            <div className="nav-section-title">CÔNG VIỆC CỦA TÔI</div>
+            <NavLink 
+              to="/employee/dashboard" 
+              className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`}
+            >
+              <LayoutDashboard size={18} className="nav-icon" />
+              <span>Tổng quan Cá nhân</span>
+            </NavLink>
+
+            <NavLink 
+              to="/employee/tasks" 
+              className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`}
+            >
+              <FolderKanban size={18} className="nav-icon" />
+              <span>Nhiệm vụ được giao</span>
             </NavLink>
           </>
         )}

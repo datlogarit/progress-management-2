@@ -8,10 +8,8 @@ import {
   getTasksApi, 
   createTaskApi, 
   updateTaskApi, 
-  deleteTaskApi, 
   updateTaskStatusApi, 
-  type TaskDTO, 
-  type TaskStatus 
+  type TaskDTO
 } from '../../services/taskService';
 import { getAllUsersApi, type UserDTO } from '../../services/userService';
 import { useAuth } from '../../context/AuthContext';
@@ -26,7 +24,6 @@ import {
   AlertCircle, 
   XCircle,
   Edit2,
-  Trash2,
   Eye
 } from 'lucide-react';
 import './LeaderTaskManagementPage.css';
@@ -80,22 +77,13 @@ export function LeaderTaskManagementPage() {
     }
   };
 
-  const handleDeleteTask = async (task: TaskDTO) => {
-    if (!window.confirm(`Bạn có chắc chắn muốn xóa công việc "${task.title}"?`)) return;
+  const handleCancelTask = async (task: TaskDTO) => {
+    if (!window.confirm(`Bạn có chắc chắn muốn hủy công việc "${task.title}"?`)) return;
     try {
-      await deleteTaskApi(task.id);
-      setTasks(prev => prev.filter(t => t.id !== task.id));
+      const updated = await updateTaskStatusApi(task.id, 'CANCELLED');
+      setTasks(prev => prev.map(t => t.id === task.id ? updated : t));
     } catch (err: any) {
-      alert(err.message || 'Không thể xóa công việc');
-    }
-  };
-
-  const handleStatusChange = async (taskId: number, status: TaskStatus) => {
-    try {
-      const updated = await updateTaskStatusApi(taskId, status);
-      setTasks(prev => prev.map(t => t.id === taskId ? updated : t));
-    } catch (err: any) {
-      alert(err.message || 'Không thể đổi trạng thái');
+      alert(err.message || 'Không thể hủy công việc');
     }
   };
 
@@ -153,9 +141,13 @@ export function LeaderTaskManagementPage() {
                 <select value={selectedAssignee} onChange={(e) => setSelectedAssignee(e.target.value)}>
                   <option value="ALL">Tất cả người thực hiện</option>
                   <option value="UNASSIGNED">Chưa phân công</option>
-                  {departmentMembers.map(m => (
-                    <option key={m.id} value={m.id}>{m.fullName}</option>
-                  ))}
+                  {departmentMembers
+                    .filter((m) => m.role === 'EMPLOYEE')
+                    .map((m) => (
+                      <option key={m.id} value={m.id}>
+                        {m.fullName}
+                      </option>
+                    ))}
                 </select>
               </div>
             </div>
@@ -208,8 +200,7 @@ export function LeaderTaskManagementPage() {
                       task={t}
                       onViewDetail={(task) => setDetailTask(task)}
                       onEdit={(task) => { setEditingTask(task); setIsCreateModalOpen(true); }}
-                      onDelete={handleDeleteTask}
-                      onStatusChange={handleStatusChange}
+                      onCancel={handleCancelTask}
                     />
                   ))}
                 </div>
@@ -229,8 +220,7 @@ export function LeaderTaskManagementPage() {
                       task={t}
                       onViewDetail={(task) => setDetailTask(task)}
                       onEdit={(task) => { setEditingTask(task); setIsCreateModalOpen(true); }}
-                      onDelete={handleDeleteTask}
-                      onStatusChange={handleStatusChange}
+                      onCancel={handleCancelTask}
                     />
                   ))}
                 </div>
@@ -250,8 +240,7 @@ export function LeaderTaskManagementPage() {
                       task={t}
                       onViewDetail={(task) => setDetailTask(task)}
                       onEdit={(task) => { setEditingTask(task); setIsCreateModalOpen(true); }}
-                      onDelete={handleDeleteTask}
-                      onStatusChange={handleStatusChange}
+                      onCancel={handleCancelTask}
                     />
                   ))}
                 </div>
@@ -271,8 +260,7 @@ export function LeaderTaskManagementPage() {
                       task={t}
                       onViewDetail={(task) => setDetailTask(task)}
                       onEdit={(task) => { setEditingTask(task); setIsCreateModalOpen(true); }}
-                      onDelete={handleDeleteTask}
-                      onStatusChange={handleStatusChange}
+                      onCancel={handleCancelTask}
                     />
                   ))}
                 </div>
@@ -313,7 +301,14 @@ export function LeaderTaskManagementPage() {
                         <div className="table-actions">
                           <button onClick={() => setDetailTask(t)} title="Chi tiết"><Eye size={16} /></button>
                           <button onClick={() => { setEditingTask(t); setIsCreateModalOpen(true); }} title="Sửa"><Edit2 size={16} /></button>
-                          <button onClick={() => handleDeleteTask(t)} className="delete-btn" title="Xóa"><Trash2 size={16} /></button>
+                          <button 
+                            onClick={() => handleCancelTask(t)} 
+                            className="delete-btn" 
+                            title="Hủy task"
+                            disabled={t.status === 'CANCELLED'}
+                          >
+                            <XCircle size={16} />
+                          </button>
                         </div>
                       </td>
                     </tr>

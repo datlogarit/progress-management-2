@@ -85,6 +85,20 @@ export async function getTasksApi(params?: GetTasksParams): Promise<TaskDTO[]> {
   return data;
 }
 
+export async function getMyTasksApi(status?: TaskStatus): Promise<TaskDTO[]> {
+  const query = status ? `?status=${status}` : '';
+  const response = await fetch(`${API_BASE_URL}/tasks/my-tasks${query}`, {
+    method: 'GET',
+    headers: getAuthHeaders(),
+  });
+
+  const data = await response.json();
+  if (!response.ok) {
+    throw new Error(data.message || 'Không thể lấy danh sách nhiệm vụ cá nhân');
+  }
+  return data;
+}
+
 export async function getTaskByIdApi(id: number): Promise<TaskDTO> {
   const response = await fetch(`${API_BASE_URL}/tasks/${id}`, {
     method: 'GET',

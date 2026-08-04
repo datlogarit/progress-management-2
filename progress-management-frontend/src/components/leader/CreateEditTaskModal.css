@@ -89,6 +89,13 @@ input[type="date"].form-control {
   min-height: 95px;
 }
 
+.form-control:disabled {
+  background-color: #f1f5f9;
+  color: var(--color-text-secondary);
+  cursor: not-allowed;
+  opacity: 0.85;
+}
+
 .modal-actions {
   display: flex;
   align-items: center;

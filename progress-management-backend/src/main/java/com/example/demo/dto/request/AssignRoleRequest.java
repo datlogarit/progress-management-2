@@ -15,4 +15,6 @@ public class AssignRoleRequest {
 
     @NotNull(message = "Role is required")
     private RoleEnum role;
+
+    private Long reassignToUserId;
 }

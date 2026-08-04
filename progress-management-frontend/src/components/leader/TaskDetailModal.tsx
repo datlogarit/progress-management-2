@@ -4,8 +4,7 @@ import type { UserDTO } from '../../services/authService';
 import { 
   getTaskCommentsApi, 
   addCommentApi, 
-  updateTaskStatusApi, 
-  assignTaskApi 
+  updateTaskStatusApi 
 } from '../../services/taskService';
 import { Modal } from '../Modal';
 import { 
@@ -16,16 +15,16 @@ import {
   Clock, 
   CheckCircle2, 
   AlertCircle, 
-  XCircle,
   MessageSquare
 } from 'lucide-react';
+import { useAuth } from '../../context/AuthContext';
 import './TaskDetailModal.css';
 
 interface TaskDetailModalProps {
   isOpen: boolean;
   onClose: () => void;
   task: TaskDTO | null;
-  departmentMembers: UserDTO[];
+  departmentMembers?: UserDTO[];
   onTaskUpdated?: (updatedTask: TaskDTO) => void;
 }
 
@@ -33,9 +32,9 @@ export function TaskDetailModal({
   isOpen,
   onClose,
   task,
-  departmentMembers,
   onTaskUpdated,
 }: TaskDetailModalProps) {
+  const { user } = useAuth();
   const [currentTask, setCurrentTask] = useState<TaskDTO | null>(task);
   const [comments, setComments] = useState<CommentDTO[]>([]);
   const [newComment, setNewComment] = useState('');
@@ -76,21 +75,6 @@ export function TaskDetailModal({
     }
   };
 
-  const handleAssigneeChange = async (e: React.ChangeEvent<HTMLSelectElement>) => {
-    if (!currentTask) return;
-    const assigneeId = e.target.value ? Number(e.target.value) : null;
-    if (!assigneeId) return;
-
-    setActionError(null);
-    try {
-      const updated = await assignTaskApi(currentTask.id, assigneeId);
-      setCurrentTask(updated);
-      if (onTaskUpdated) onTaskUpdated(updated);
-    } catch (err: any) {
-      setActionError(err.message || 'Không thể phân công việc');
-    }
-  };
-
   const handleSendComment = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!currentTask || !newComment.trim()) return;
@@ -122,42 +106,48 @@ export function TaskDetailModal({
           <div className="detail-meta-grid">
             <div className="meta-item">
               <span className="meta-label">Trạng thái:</span>
-              <div className="status-selector-group">
-                <button
-                  className={`status-btn pending ${currentTask.status === 'PENDING' ? 'active' : ''}`}
-                  onClick={() => handleStatusChange('PENDING')}
-                >
-                  <AlertCircle size={12} /> Chưa làm
-                </button>
-                <button
-                  className={`status-btn in-progress ${currentTask.status === 'IN_PROGRESS' ? 'active' : ''}`}
-                  onClick={() => handleStatusChange('IN_PROGRESS')}
-                >
-                  <Clock size={12} /> Đang làm
-                </button>
-                <button
-                  className={`status-btn completed ${currentTask.status === 'COMPLETED' ? 'active' : ''}`}
-                  onClick={() => handleStatusChange('COMPLETED')}
-                >
-                  <CheckCircle2 size={12} /> Hoàn thành
-                </button>
-              </div>
+              {user?.role === 'LEADER' ? (
+                <span className={`status-pill ${currentTask.status.toLowerCase()}`}>
+                  {currentTask.status === 'COMPLETED'
+                    ? 'Hoàn thành'
+                    : currentTask.status === 'IN_PROGRESS'
+                    ? 'Đang làm'
+                    : currentTask.status === 'PENDING'
+                    ? 'Chưa làm'
+                    : 'Đã hủy'}
+                </span>
+              ) : (
+                <div className="status-selector-group">
+                  <button
+                    className={`status-btn pending ${currentTask.status === 'PENDING' ? 'active' : ''}`}
+                    onClick={() => handleStatusChange('PENDING')}
+                  >
+                    <AlertCircle size={12} /> Chưa làm
+                  </button>
+                  <button
+                    className={`status-btn in-progress ${currentTask.status === 'IN_PROGRESS' ? 'active' : ''}`}
+                    onClick={() => handleStatusChange('IN_PROGRESS')}
+                  >
+                    <Clock size={12} /> Đang làm
+                  </button>
+                  <button
+                    className={`status-btn completed ${currentTask.status === 'COMPLETED' ? 'active' : ''}`}
+                    onClick={() => handleStatusChange('COMPLETED')}
+                  >
+                    <CheckCircle2 size={12} /> Hoàn thành
+                  </button>
+                </div>
+              )}
             </div>
 
             <div className="meta-item">
               <span className="meta-label">Người được giao:</span>
-              <select
-                className="assignee-select"
-                value={currentTask.assignee ? currentTask.assignee.id : ''}
-                onChange={handleAssigneeChange}
-              >
-                <option value="">-- Chưa giao --</option>
-                {departmentMembers.map((m) => (
-                  <option key={m.id} value={m.id}>
-                    {m.fullName} ({m.username})
-                  </option>
-                ))}
-              </select>
+              <span className="meta-value">
+                <UserIcon size={14} />{' '}
+                {currentTask.assignee
+                  ? `${currentTask.assignee.fullName} (@${currentTask.assignee.username})`
+                  : 'Chưa giao'}
+              </span>
             </div>
 
             <div className="meta-item">

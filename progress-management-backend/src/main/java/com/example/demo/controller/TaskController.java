@@ -46,6 +46,15 @@ public class TaskController {
         return ResponseEntity.ok(tasks);
     }
 
+    @GetMapping("/my-tasks")
+    @PreAuthorize("hasAnyRole('LEADER', 'EMPLOYEE', 'ADMIN')")
+    public ResponseEntity<List<TaskResponse>> getMyTasks(
+            @RequestParam(required = false) TaskStatus status,
+            @AuthenticationPrincipal UserPrincipal currentUser) {
+        List<TaskResponse> tasks = taskService.getMyTasks(status, currentUser);
+        return ResponseEntity.ok(tasks);
+    }
+
     @GetMapping("/{id}")
     @PreAuthorize("hasAnyRole('LEADER', 'EMPLOYEE', 'ADMIN')")
     public ResponseEntity<TaskResponse> getTaskById(

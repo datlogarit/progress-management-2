@@ -2,45 +2,48 @@ import { useState, useEffect } from 'react';
 import { Sidebar } from '../../components/Sidebar';
 import { Header } from '../../components/Header';
 import { TaskCard } from '../../components/leader/TaskCard';
-import { CreateEditTaskModal } from '../../components/leader/CreateEditTaskModal';
 import { TaskDetailModal } from '../../components/leader/TaskDetailModal';
-import { getTasksApi, createTaskApi, type TaskDTO } from '../../services/taskService';
-import { getAllUsersApi, type UserDTO } from '../../services/userService';
+import { getMyTasksApi, updateTaskStatusApi, type TaskDTO, type TaskStatus } from '../../services/taskService';
+import { 
+  getUserNotificationsApi, 
+  markNotificationAsReadApi, 
+  markAllNotificationsAsReadApi,
+  type NotificationDTO 
+} from '../../services/notificationService';
 import { useAuth } from '../../context/AuthContext';
 import { 
   FolderKanban, 
   Clock, 
   CheckCircle2, 
   AlertCircle, 
-  Plus, 
   TrendingUp, 
-  Users
+  Bell,
+  CheckCheck
 } from 'lucide-react';
-import './LeaderDashboardPage.css';
+import './EmployeeDashboardPage.css';
 
-export function LeaderDashboardPage() {
+export function EmployeeDashboardPage() {
   const { user } = useAuth();
   const [tasks, setTasks] = useState<TaskDTO[]>([]);
-  const [departmentMembers, setDepartmentMembers] = useState<UserDTO[]>([]);
+  const [notifications, setNotifications] = useState<NotificationDTO[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
   // Modals state
-  const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
   const [selectedTask, setSelectedTask] = useState<TaskDTO | null>(null);
 
   const fetchData = async () => {
     setLoading(true);
     setError(null);
     try {
-      const [tasksData, usersData] = await Promise.all([
-        getTasksApi(),
-        user?.departmentId ? getAllUsersApi(user.departmentId) : getAllUsersApi(),
+      const [tasksData, notifsData] = await Promise.all([
+        getMyTasksApi(),
+        getUserNotificationsApi(),
       ]);
       setTasks(tasksData);
-      setDepartmentMembers(usersData);
+      setNotifications(notifsData);
     } catch (err: any) {
-      setError(err.message || 'Không thể tải dữ liệu');
+      setError(err.message || 'Không thể tải dữ liệu nhiệm vụ');
     } finally {
       setLoading(false);
     }
@@ -48,48 +51,68 @@ export function LeaderDashboardPage() {
 
   useEffect(() => {
     fetchData();
-  }, [user]);
+  }, []);
 
-  const handleCreateTask = async (formData: any) => {
-    await createTaskApi(formData);
-    fetchData();
+  const handleStatusChange = async (taskId: number, status: TaskStatus) => {
+    try {
+      const updated = await updateTaskStatusApi(taskId, status);
+      setTasks(prev => prev.map(t => t.id === taskId ? updated : t));
+    } catch (err: any) {
+      alert(err.message || 'Không thể cập nhật trạng thái');
+    }
+  };
+
+  const handleMarkAsRead = async (id: number) => {
+    try {
+      await markNotificationAsReadApi(id);
+      setNotifications(prev => prev.map(n => n.id === id ? { ...n, isRead: true } : n));
+    } catch (err: any) {
+      console.error(err);
+    }
+  };
+
+  const handleMarkAllAsRead = async () => {
+    try {
+      await markAllNotificationsAsReadApi();
+      setNotifications(prev => prev.map(n => ({ ...n, isRead: true })));
+    } catch (err: any) {
+      console.error(err);
+    }
   };
 
   const pendingCount = tasks.filter(t => t.status === 'PENDING').length;
   const inProgressCount = tasks.filter(t => t.status === 'IN_PROGRESS').length;
   const completedCount = tasks.filter(t => t.status === 'COMPLETED').length;
+  const unreadNotifs = notifications.filter(n => !n.isRead);
 
   return (
     <div className="app-layout">
       <Sidebar />
       
       <div className="app-content">
-        <Header title={`Tổng quan Phòng ban ${user?.departmentName ? `- ${user.departmentName}` : ''}`} />
+        <Header title={`Tổng quan Nhiệm vụ ${user?.departmentName ? `- ${user.departmentName}` : ''}`} />
 
         <main className="main-container">
           {error && <div className="page-error-banner">{error}</div>}
 
           {/* Quick Header Banner */}
-          <div className="dashboard-banner">
+          <div className="dashboard-banner employee-theme">
             <div className="banner-text">
               <h2>Xin chào, {user?.fullName}! 👋</h2>
-              <p>Dưới đây là tổng quan tiến độ công việc và hoạt động của phòng ban bạn.</p>
+              <p>Dưới đây là danh sách và tiến độ các công việc được giao cho bạn.</p>
             </div>
-            <button className="btn-create-task" onClick={() => setIsCreateModalOpen(true)}>
-              <Plus size={18} /> Tạo Công việc mới
-            </button>
           </div>
 
           {/* Stat Cards Grid */}
           <div className="stat-cards-grid">
             <div className="stat-card">
               <div className="stat-card-header">
-                <span className="stat-label">TỔNG CÔNG VIỆC</span>
+                <span className="stat-label">NHIỆM VỤ ĐƯỢC GIAO</span>
                 <div className="stat-icon total"><FolderKanban size={20} /></div>
               </div>
               <div className="stat-value">{tasks.length}</div>
               <div className="stat-footer">
-                <span className="stat-trend positive"><TrendingUp size={14} /> Tốc độ giao việc ổn định</span>
+                <span className="stat-trend positive"><TrendingUp size={14} /> Nhiệm vụ cá nhân</span>
               </div>
             </div>
 
@@ -100,7 +123,7 @@ export function LeaderDashboardPage() {
               </div>
               <div className="stat-value">{pendingCount}</div>
               <div className="stat-footer">
-                <span className="stat-subtext">Cần phân công / bắt đầu</span>
+                <span className="stat-subtext">Cần bắt đầu xử lý</span>
               </div>
             </div>
 
@@ -123,28 +146,25 @@ export function LeaderDashboardPage() {
               <div className="stat-value">{completedCount}</div>
               <div className="stat-footer">
                 <span className="stat-trend positive">
-                  {tasks.length > 0 ? Math.round((completedCount / tasks.length) * 100) : 0}% tỉ lệ hoàn thành
+                  {tasks.length > 0 ? Math.round((completedCount / tasks.length) * 100) : 0}% hoàn thành
                 </span>
               </div>
             </div>
           </div>
 
-          {/* Recent Tasks & Quick Overview */}
+          {/* Recent Tasks & Notifications Sidebar */}
           <div className="dashboard-content-grid">
             <div className="recent-tasks-section">
               <div className="section-header">
-                <h3 className="section-title">Công việc gần đây</h3>
+                <h3 className="section-title">Công việc được giao gần đây</h3>
                 <span className="task-count-badge">{tasks.length} task</span>
               </div>
 
               {loading ? (
-                <div className="loading-state">Đang tải danh sách công việc...</div>
+                <div className="loading-state">Đang tải công việc cá nhân...</div>
               ) : tasks.length === 0 ? (
                 <div className="empty-state">
-                  <p>Chưa có công việc nào trong phòng ban.</p>
-                  <button className="btn-secondary-sm" onClick={() => setIsCreateModalOpen(true)}>
-                    + Tạo task đầu tiên
-                  </button>
+                  <p>Hiện tại bạn chưa được giao công việc nào.</p>
                 </div>
               ) : (
                 <div className="tasks-grid">
@@ -153,52 +173,41 @@ export function LeaderDashboardPage() {
                       key={task.id}
                       task={task}
                       onViewDetail={(t) => setSelectedTask(t)}
+                      onStatusChange={handleStatusChange}
                     />
                   ))}
                 </div>
               )}
             </div>
 
-            {/* Team Quick Workload */}
-            <div className="team-workload-sidebar">
+            {/* Notifications Sidebar */}
+            <div className="notifications-sidebar">
               <div className="section-header">
                 <h3 className="section-title">
-                  <Users size={18} /> Thành viên phòng ban
+                  <Bell size={18} /> Thông báo mới ({unreadNotifs.length})
                 </h3>
+                {unreadNotifs.length > 0 && (
+                  <button className="btn-mark-all" onClick={handleMarkAllAsRead} title="Đọc tất cả">
+                    <CheckCheck size={14} /> Đọc tất cả
+                  </button>
+                )}
               </div>
 
-              <div className="team-members-list">
-                {departmentMembers.length === 0 ? (
-                  <p className="no-members">Chưa có thành viên nào.</p>
+              <div className="notifications-list">
+                {notifications.length === 0 ? (
+                  <p className="no-notifications">Chưa có thông báo nào.</p>
                 ) : (
-                  departmentMembers.map((member) => {
-                    const assignedTasks = tasks.filter(t => t.assignee?.id === member.id);
-                    const pendingTasksCount = assignedTasks.filter(t => t.status === 'PENDING').length;
-                    const inProgressTasksCount = assignedTasks.filter(t => t.status === 'IN_PROGRESS').length;
-                    const completedTasksCount = assignedTasks.filter(t => t.status === 'COMPLETED').length;
-                    const isEmployee = member.role === 'EMPLOYEE';
-
-                    return (
-                      <div key={member.id} className="team-member-item">
-                        <div className="member-info">
-                          <div className="member-name">{member.fullName}</div>
-                          <div className="member-role">{member.role}</div>
-                        </div>
-                        {isEmployee ? (
-                          <div className="member-workload">
-                            <span className="workload-count">{assignedTasks.length} task</span>
-                            <span className="workload-progress">
-                              ({completedTasksCount} xong, {inProgressTasksCount} đang làm, {pendingTasksCount} chưa làm)
-                            </span>
-                          </div>
-                        ) : (
-                          <div className="member-workload">
-                            <span className="workload-role-badge">Trưởng phòng</span>
-                          </div>
-                        )}
-                      </div>
-                    );
-                  })
+                  notifications.slice(0, 5).map((notif) => (
+                    <div 
+                      key={notif.id} 
+                      className={`notif-item ${notif.isRead ? 'read' : 'unread'}`}
+                      onClick={() => !notif.isRead && handleMarkAsRead(notif.id)}
+                    >
+                      <div className="notif-title">{notif.title}</div>
+                      <div className="notif-message">{notif.message}</div>
+                      <div className="notif-time">{new Date(notif.createdAt).toLocaleString('vi-VN')}</div>
+                    </div>
+                  ))
                 )}
               </div>
             </div>
@@ -206,19 +215,12 @@ export function LeaderDashboardPage() {
         </main>
       </div>
 
-      {/* Modals */}
-      <CreateEditTaskModal
-        isOpen={isCreateModalOpen}
-        onClose={() => setIsCreateModalOpen(false)}
-        onSubmit={handleCreateTask}
-        departmentMembers={departmentMembers}
-      />
-
+      {/* Task Detail Modal */}
       <TaskDetailModal
         isOpen={selectedTask !== null}
         onClose={() => setSelectedTask(null)}
         task={selectedTask}
-        departmentMembers={departmentMembers}
+        departmentMembers={[]}
         onTaskUpdated={(updated) => {
           setSelectedTask(updated);
           setTasks(prev => prev.map(t => t.id === updated.id ? updated : t));

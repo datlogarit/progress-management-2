@@ -21,5 +21,5 @@ public interface UserService {
 
     UserResponse assignDepartment(Long id, AssignDepartmentRequest request);
 
-    void deleteUser(Long id);
+    void deleteUser(Long id, Long reassignToUserId);
 }

@@ -1,0 +1,83 @@
+.dashboard-banner.employee-theme {
+  background: linear-gradient(135deg, #0284c7 0%, #0369a1 100%);
+  box-shadow: 0 10px 20px -5px rgba(2, 132, 199, 0.3);
+}
+
+.notifications-sidebar {
+  background-color: var(--color-card-bg);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-card);
+  padding: 20px;
+  box-shadow: var(--shadow-card);
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.btn-mark-all {
+  background: transparent;
+  border: none;
+  color: var(--color-accent);
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.btn-mark-all:hover {
+  text-decoration: underline;
+}
+
+.notifications-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.no-notifications {
+  font-size: 13px;
+  color: var(--color-text-secondary);
+  text-align: center;
+  padding: 16px 0;
+}
+
+.notif-item {
+  padding: 10px 12px;
+  border-radius: var(--radius-button);
+  border: 1px solid var(--color-border);
+  background-color: var(--color-page-bg);
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.notif-item.unread {
+  border-left: 3px solid var(--color-accent);
+  background-color: #f0f9ff;
+}
+
+.notif-item:hover {
+  border-color: #cbd5e1;
+}
+
+.notif-title {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--color-text-primary);
+}
+
+.notif-message {
+  font-size: 12px;
+  color: var(--color-text-secondary);
+  word-break: break-word;
+  overflow-wrap: anywhere;
+}
+
+.notif-time {
+  font-size: 10px;
+  color: var(--color-text-disabled);
+}

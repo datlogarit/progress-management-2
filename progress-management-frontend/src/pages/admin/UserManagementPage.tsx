@@ -42,7 +42,13 @@ export function UserManagementPage() {
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [isResetPwdModalOpen, setIsResetPwdModalOpen] = useState(false);
+  const [isReassignModalOpen, setIsReassignModalOpen] = useState(false);
+  const [reassignActionType, setReassignActionType] = useState<'PROMOTE' | 'INACTIVATE' | 'DELETE'>('PROMOTE');
   const [selectedUser, setSelectedUser] = useState<UserDTO | null>(null);
+  const [targetUserForReassign, setTargetUserForReassign] = useState<UserDTO | null>(null);
+  const [pendingUpdateForm, setPendingUpdateForm] = useState<{ email: string; fullName: string; isActive: boolean } | null>(null);
+  const [replacementCandidates, setReplacementCandidates] = useState<UserDTO[]>([]);
+  const [selectedReplacementId, setSelectedReplacementId] = useState<number | null>(null);
 
   // Form inputs
   const [createForm, setCreateForm] = useState({
@@ -161,7 +167,28 @@ export function UserManagementPage() {
       showSuccess(`Cập nhật tài khoản ${selectedUser.username} thành công!`);
       fetchData();
     } catch (err: unknown) {
-      if (err instanceof Error) setError(err.message);
+      if (err instanceof Error) {
+        if (
+          err.message.includes('REASSIGNMENT_REQUIRED') || 
+          err.message.toLowerCase().includes('bàn giao công việc') || 
+          err.message.toLowerCase().includes('công việc được giao')
+        ) {
+          const candidates = users.filter(
+            (u) => u.isActive && u.id !== selectedUser.id && u.role === 'EMPLOYEE' && (selectedUser.departmentId == null || u.departmentId === selectedUser.departmentId)
+          );
+          if (candidates.length > 0) {
+            setReassignActionType('INACTIVATE');
+            setTargetUserForReassign(selectedUser);
+            setPendingUpdateForm(editForm);
+            setReplacementCandidates(candidates);
+            setSelectedReplacementId(candidates[0].id);
+            setIsEditModalOpen(false);
+            setIsReassignModalOpen(true);
+            return;
+          }
+        }
+        setError(err.message);
+      }
     }
   };
 
@@ -184,11 +211,60 @@ export function UserManagementPage() {
     }
   };
 
-  const handleRoleChange = async (userId: number, newRole: 'ADMIN' | 'LEADER' | 'EMPLOYEE') => {
+  const handleRoleChange = async (targetUser: UserDTO, newRole: 'ADMIN' | 'LEADER' | 'EMPLOYEE') => {
+    if (targetUser.role === newRole) return;
+
+    if (targetUser.role === 'EMPLOYEE' && newRole === 'LEADER') {
+      const candidates = users.filter(
+        (u) => u.departmentId === targetUser.departmentId && u.role === 'EMPLOYEE' && u.id !== targetUser.id
+      );
+
+      if (candidates.length > 0) {
+        setReassignActionType('PROMOTE');
+        setTargetUserForReassign(targetUser);
+        setReplacementCandidates(candidates);
+        setSelectedReplacementId(candidates[0].id);
+        setIsReassignModalOpen(true);
+        return;
+      }
+    }
+
     try {
       setError(null);
-      await assignRoleApi(userId, { role: newRole });
+      await assignRoleApi(targetUser.id, { role: newRole });
       showSuccess('Cập nhật vai trò (Role) thành công!');
+      fetchData();
+    } catch (err: unknown) {
+      if (err instanceof Error) setError(err.message);
+    }
+  };
+
+  const handleConfirmReassignment = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!targetUserForReassign || !selectedReplacementId) return;
+    try {
+      setError(null);
+      if (reassignActionType === 'PROMOTE') {
+        await assignRoleApi(targetUserForReassign.id, {
+          role: 'LEADER',
+          reassignToUserId: selectedReplacementId,
+        });
+        showSuccess(`Đã nâng cấp ${targetUserForReassign.fullName} thành Trưởng phòng và bàn giao công việc thành công!`);
+      } else if (reassignActionType === 'INACTIVATE') {
+        if (!pendingUpdateForm) return;
+        await updateUserApi(targetUserForReassign.id, {
+          ...pendingUpdateForm,
+          reassignToUserId: selectedReplacementId,
+        });
+        showSuccess(`Đã khóa tài khoản ${targetUserForReassign.username} và bàn giao công việc thành công!`);
+      } else if (reassignActionType === 'DELETE') {
+        await deleteUserApi(targetUserForReassign.id, selectedReplacementId);
+        showSuccess(`Đã bàn giao công việc và xóa tài khoản ${targetUserForReassign.username}!`);
+      }
+
+      setIsReassignModalOpen(false);
+      setTargetUserForReassign(null);
+      setPendingUpdateForm(null);
       fetchData();
     } catch (err: unknown) {
       if (err instanceof Error) setError(err.message);
@@ -217,7 +293,26 @@ export function UserManagementPage() {
       showSuccess(`Đã xóa tài khoản ${u.username}!`);
       fetchData();
     } catch (err: unknown) {
-      if (err instanceof Error) setError(err.message);
+      if (err instanceof Error) {
+        if (
+          err.message.includes('REASSIGNMENT_REQUIRED') || 
+          err.message.toLowerCase().includes('bàn giao công việc') || 
+          err.message.toLowerCase().includes('công việc được giao')
+        ) {
+          const candidates = users.filter(
+            (c) => c.isActive && c.id !== u.id && c.role === 'EMPLOYEE' && (u.departmentId == null || c.departmentId === u.departmentId)
+          );
+          if (candidates.length > 0) {
+            setReassignActionType('DELETE');
+            setTargetUserForReassign(u);
+            setReplacementCandidates(candidates);
+            setSelectedReplacementId(candidates[0].id);
+            setIsReassignModalOpen(true);
+            return;
+          }
+        }
+        setError(err.message);
+      }
     }
   };
 
@@ -307,34 +402,45 @@ export function UserManagementPage() {
                       </td>
                       <td className="text-secondary">{u.email}</td>
                       <td>
-                        <select
-                          className={`select-badge role-${u.role.toLowerCase()}`}
-                          value={u.role}
-                          onChange={(e) =>
-                            handleRoleChange(
-                              u.id,
-                              e.target.value as 'ADMIN' | 'LEADER' | 'EMPLOYEE'
-                            )
-                          }
-                        >
-                          <option value="ADMIN">ADMIN</option>
-                          <option value="LEADER">LEADER</option>
-                          <option value="EMPLOYEE">EMPLOYEE</option>
-                        </select>
+                        {u.role === 'ADMIN' ? (
+                          <span className="select-badge role-admin" style={{ opacity: 0.85, cursor: 'not-allowed', display: 'inline-block', padding: '4px 10px' }}>
+                            ADMIN
+                          </span>
+                        ) : (
+                          <select
+                            className={`select-badge role-${u.role.toLowerCase()}`}
+                            value={u.role}
+                            onChange={(e) =>
+                              handleRoleChange(
+                                u,
+                                e.target.value as 'LEADER' | 'EMPLOYEE'
+                              )
+                            }
+                          >
+                            <option value="LEADER">LEADER</option>
+                            <option value="EMPLOYEE">EMPLOYEE</option>
+                          </select>
+                        )}
                       </td>
                       <td>
-                        <select
-                          className="select-dept"
-                          value={u.departmentId ?? ''}
-                          onChange={(e) => handleDepartmentChange(u.id, e.target.value)}
-                        >
-                          <option value="">-- Chưa gán --</option>
-                          {departments.map((d) => (
-                            <option key={d.id} value={d.id}>
-                              {d.name}
-                            </option>
-                          ))}
-                        </select>
+                        {u.role === 'ADMIN' ? (
+                          <span className="text-secondary" style={{fontSize: '13px', color: 'var(--color-text-disabled)' }}>
+                            ADMIN
+                          </span>
+                        ) : (
+                          <select
+                            className="select-dept"
+                            value={u.departmentId ?? ''}
+                            onChange={(e) => handleDepartmentChange(u.id, e.target.value)}
+                          >
+                            <option value="">-- Chưa gán --</option>
+                            {departments.map((d) => (
+                              <option key={d.id} value={d.id}>
+                                {d.name}
+                              </option>
+                            ))}
+                          </select>
+                        )}
                       </td>
                       <td>
                         <span className={`status-pill ${u.isActive ? 'active' : 'inactive'}`}>
@@ -350,31 +456,60 @@ export function UserManagementPage() {
                         </span>
                       </td>
                       <td>
-                        <div className="action-buttons">
-                          <button
-                            className="btn-icon edit"
-                            onClick={() => handleOpenEditModal(u)}
-                            title="Sửa thông tin"
-                          >
-                            <Edit3 size={16} />
-                          </button>
+                        {u.role === 'ADMIN' ? (
+                          <div className="action-buttons">
+                            <button
+                              className="btn-icon edit"
+                              disabled
+                              style={{ opacity: 0.35, cursor: 'not-allowed' }}
+                              title="Khóa: Không thể thao tác trên tài khoản Admin"
+                            >
+                              <Edit3 size={16} />
+                            </button>
+                            <button
+                              className="btn-icon key"
+                              disabled
+                              style={{ opacity: 0.35, cursor: 'not-allowed' }}
+                              title="Khóa: Không thể thao tác trên tài khoản Admin"
+                            >
+                              <Key size={16} />
+                            </button>
+                            <button
+                              className="btn-icon delete"
+                              disabled
+                              style={{ opacity: 0.35, cursor: 'not-allowed' }}
+                              title="Khóa: Không thể thao tác trên tài khoản Admin"
+                            >
+                              <Trash2 size={16} />
+                            </button>
+                          </div>
+                        ) : (
+                          <div className="action-buttons">
+                            <button
+                              className="btn-icon edit"
+                              onClick={() => handleOpenEditModal(u)}
+                              title="Sửa thông tin"
+                            >
+                              <Edit3 size={16} />
+                            </button>
 
-                          <button
-                            className="btn-icon key"
-                            onClick={() => handleOpenResetPwd(u)}
-                            title="Reset mật khẩu"
-                          >
-                            <Key size={16} />
-                          </button>
+                            <button
+                              className="btn-icon key"
+                              onClick={() => handleOpenResetPwd(u)}
+                              title="Reset mật khẩu"
+                            >
+                              <Key size={16} />
+                            </button>
 
-                          <button
-                            className="btn-icon delete"
-                            onClick={() => handleDeleteUser(u)}
-                            title="Xóa tài khoản"
-                          >
-                            <Trash2 size={16} />
-                          </button>
-                        </div>
+                            <button
+                              className="btn-icon delete"
+                              onClick={() => handleDeleteUser(u)}
+                              title="Xóa tài khoản"
+                            >
+                              <Trash2 size={16} />
+                            </button>
+                          </div>
+                        )}
                       </td>
                     </tr>
                   ))}
@@ -452,13 +587,12 @@ export function UserManagementPage() {
                 onChange={(e) =>
                   setCreateForm({
                     ...createForm,
-                    role: e.target.value as 'ADMIN' | 'LEADER' | 'EMPLOYEE',
+                    role: e.target.value as 'LEADER' | 'EMPLOYEE',
                   })
                 }
               >
                 <option value="EMPLOYEE">EMPLOYEE (Nhân viên)</option>
                 <option value="LEADER">LEADER (Trưởng phòng)</option>
-                <option value="ADMIN">ADMIN (Quản trị viên)</option>
               </select>
             </div>
 
@@ -575,6 +709,77 @@ export function UserManagementPage() {
             </button>
             <button type="submit" className="btn-primary">
               Xác nhận Reset Mật khẩu
+            </button>
+          </div>
+        </form>
+      </Modal>
+
+      {/* REASSIGN TASK MODAL */}
+      <Modal
+        isOpen={isReassignModalOpen}
+        onClose={() => {
+          setIsReassignModalOpen(false);
+          setTargetUserForReassign(null);
+          setPendingUpdateForm(null);
+        }}
+        title={
+          reassignActionType === 'PROMOTE'
+            ? 'Bàn giao công việc khi nâng cấp Trưởng phòng'
+            : reassignActionType === 'INACTIVATE'
+            ? 'Bàn giao công việc trước khi khóa tài khoản'
+            : 'Bàn giao công việc trước khi xóa tài khoản'
+        }
+      >
+        <form onSubmit={handleConfirmReassignment} className="modal-form">
+          <p style={{ fontSize: '14px', color: 'var(--color-text-secondary)', marginBottom: '16px', lineHeight: '1.5' }}>
+            {reassignActionType === 'PROMOTE' && (
+              <>
+                Tài khoản <strong>{targetUserForReassign?.fullName}</strong> (@{targetUserForReassign?.username}) đang là Nhân viên thuộc phòng <strong>{targetUserForReassign?.departmentName || 'Chưa gán PB'}</strong>. Khi nâng cấp thành Trưởng phòng, các công việc hiện tại của tài khoản này phải được bàn giao lại cho nhân viên khác.
+              </>
+            )}
+            {reassignActionType === 'INACTIVATE' && (
+              <>
+                Tài khoản <strong>{targetUserForReassign?.fullName}</strong> (@{targetUserForReassign?.username}) hiện đang có các công việc được giao. Vui lòng chọn nhân viên trong cùng phòng ban để bàn giao lại công việc trước khi khóa tài khoản.
+              </>
+            )}
+            {reassignActionType === 'DELETE' && (
+              <>
+                Tài khoản <strong>{targetUserForReassign?.fullName}</strong> (@{targetUserForReassign?.username}) hiện đang có các công việc được giao. Vui lòng chọn nhân viên trong cùng phòng ban để bàn giao lại công việc trước khi xóa vĩnh viễn tài khoản.
+              </>
+            )}
+          </p>
+
+          <div className="form-group">
+            <label>Chọn nhân viên trong cùng phòng nhận bàn giao công việc *</label>
+            <select
+              required
+              value={selectedReplacementId || ''}
+              onChange={(e) => setSelectedReplacementId(Number(e.target.value))}
+            >
+              {replacementCandidates.map((c) => (
+                <option key={c.id} value={c.id}>
+                  {c.fullName} (@{c.username}) {c.departmentName ? `- ${c.departmentName}` : ''}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          <div className="modal-actions" style={{ marginTop: '24px' }}>
+            <button
+              type="button"
+              className="btn-secondary"
+              onClick={() => {
+                setIsReassignModalOpen(false);
+                setTargetUserForReassign(null);
+                setPendingUpdateForm(null);
+              }}
+            >
+              Hủy bỏ
+            </button>
+            <button type="submit" className="btn-primary">
+              {reassignActionType === 'PROMOTE' && 'Xác nhận bàn giao & Đổi quyền'}
+              {reassignActionType === 'INACTIVATE' && 'Xác nhận bàn giao & Khóa tài khoản'}
+              {reassignActionType === 'DELETE' && 'Xác nhận bàn giao & Xóa tài khoản'}
             </button>
           </div>
         </form>
