@@ -4,6 +4,7 @@ import com.example.demo.constant.RoleEnum;
 import com.example.demo.dto.request.*;
 import com.example.demo.dto.response.UserResponse;
 import com.example.demo.entity.Department;
+import com.example.demo.entity.Role;
 import com.example.demo.entity.Task;
 import com.example.demo.entity.User;
 import com.example.demo.exception.CustomException;
@@ -12,6 +13,7 @@ import com.example.demo.exception.ResourceNotFoundException;
 import com.example.demo.repository.CommentRepository;
 import com.example.demo.repository.DepartmentRepository;
 import com.example.demo.repository.NotificationRepository;
+import com.example.demo.repository.RoleRepository;
 import com.example.demo.repository.TaskRepository;
 import com.example.demo.repository.UserRepository;
 import com.example.demo.service.UserService;
@@ -35,6 +37,7 @@ public class UserServiceImpl implements UserService {
     private final TaskRepository taskRepository;
     private final CommentRepository commentRepository;
     private final NotificationRepository notificationRepository;
+    private final RoleRepository roleRepository;
     private final PasswordEncoder passwordEncoder;
 
     @Override
@@ -84,12 +87,15 @@ public class UserServiceImpl implements UserService {
                     .orElseThrow(() -> new ResourceNotFoundException("Department not found with id: " + request.getDepartmentId()));
         }
 
+        Role targetRole = roleRepository.findByName(request.getRole().name())
+                .orElseThrow(() -> new ResourceNotFoundException("Role not found"));
+
         User user = User.builder()
                 .username(request.getUsername().trim())
                 .email(request.getEmail().trim())
                 .passwordHash(passwordEncoder.encode(request.getPassword()))
                 .fullName(request.getFullName().trim())
-                .role(request.getRole())
+                .role(targetRole)
                 .department(department)
                 .isActive(true)
                 .build();
@@ -126,7 +132,7 @@ public class UserServiceImpl implements UserService {
                     if (!Boolean.TRUE.equals(newAssignee.getIsActive())) {
                         throw new CustomException("Replacement user must be active", HttpStatus.BAD_REQUEST, "INVALID_REASSIGNMENT");
                     }
-                    if (newAssignee.getRole() != RoleEnum.EMPLOYEE) {
+                    if (!"EMPLOYEE".equals(newAssignee.getRole().getName())) {
                         throw new CustomException("Replacement user must be an EMPLOYEE", HttpStatus.BAD_REQUEST, "INVALID_REASSIGNMENT");
                     }
                     if (user.getDepartment() != null && (newAssignee.getDepartment() == null || !newAssignee.getDepartment().getId().equals(user.getDepartment().getId()))) {
@@ -141,10 +147,10 @@ public class UserServiceImpl implements UserService {
                     Long deptId = user.getDepartment() != null ? user.getDepartment().getId() : null;
                     List<User> otherActiveUsers = (deptId != null) 
                             ? userRepository.findByDepartmentId(deptId).stream()
-                                    .filter(u -> Boolean.TRUE.equals(u.getIsActive()) && !u.getId().equals(user.getId()) && u.getRole() == RoleEnum.EMPLOYEE)
+                                    .filter(u -> Boolean.TRUE.equals(u.getIsActive()) && !u.getId().equals(user.getId()) && "EMPLOYEE".equals(u.getRole().getName()))
                                     .collect(Collectors.toList())
                             : userRepository.findAll().stream()
-                                    .filter(u -> Boolean.TRUE.equals(u.getIsActive()) && !u.getId().equals(user.getId()) && u.getRole() == RoleEnum.EMPLOYEE)
+                                    .filter(u -> Boolean.TRUE.equals(u.getIsActive()) && !u.getId().equals(user.getId()) && "EMPLOYEE".equals(u.getRole().getName()))
                                     .collect(Collectors.toList());
 
                     if (!otherActiveUsers.isEmpty()) {
@@ -192,7 +198,7 @@ public class UserServiceImpl implements UserService {
         validateNotAdminTarget(user);
 
         // If promoting from EMPLOYEE to LEADER, reassign tasks
-        if (user.getRole() == RoleEnum.EMPLOYEE && request.getRole() == RoleEnum.LEADER) {
+        if ("EMPLOYEE".equals(user.getRole().getName()) && request.getRole() == RoleEnum.LEADER) {
             List<Task> assignedTasks = taskRepository.findByAssigneeId(id);
             if (!assignedTasks.isEmpty()) {
                 if (request.getReassignToUserId() != null) {
@@ -202,7 +208,7 @@ public class UserServiceImpl implements UserService {
                     if (newAssignee.getId().equals(user.getId())) {
                         throw new CustomException("Cannot reassign tasks to the same user being promoted", HttpStatus.BAD_REQUEST, "INVALID_REASSIGNMENT");
                     }
-                    if (newAssignee.getRole() != RoleEnum.EMPLOYEE) {
+                    if (!"EMPLOYEE".equals(newAssignee.getRole().getName())) {
                         throw new CustomException("Replacement assignee must be an EMPLOYEE", HttpStatus.BAD_REQUEST, "INVALID_REASSIGNMENT");
                     }
                     if (user.getDepartment() != null && (newAssignee.getDepartment() == null || !newAssignee.getDepartment().getId().equals(user.getDepartment().getId()))) {
@@ -217,7 +223,7 @@ public class UserServiceImpl implements UserService {
                     Long deptId = user.getDepartment() != null ? user.getDepartment().getId() : null;
                     List<User> otherEmployees = (deptId != null) 
                             ? userRepository.findByDepartmentId(deptId).stream()
-                                    .filter(u -> u.getRole() == RoleEnum.EMPLOYEE && !u.getId().equals(user.getId()))
+                                    .filter(u -> "EMPLOYEE".equals(u.getRole().getName()) && !u.getId().equals(user.getId()))
                                     .collect(Collectors.toList())
                             : List.of();
 
@@ -233,7 +239,9 @@ public class UserServiceImpl implements UserService {
             }
         }
 
-        user.setRole(request.getRole());
+        Role targetRole = roleRepository.findByName(request.getRole().name())
+                .orElseThrow(() -> new ResourceNotFoundException("Role not found"));
+        user.setRole(targetRole);
         User updatedUser = userRepository.save(user);
         return mapToUserResponse(updatedUser);
     }
@@ -281,7 +289,7 @@ public class UserServiceImpl implements UserService {
                 if (!Boolean.TRUE.equals(newAssignee.getIsActive())) {
                     throw new CustomException("Replacement user must be active", HttpStatus.BAD_REQUEST, "INVALID_REASSIGNMENT");
                 }
-                if (newAssignee.getRole() != RoleEnum.EMPLOYEE) {
+                if (!"EMPLOYEE".equals(newAssignee.getRole().getName())) {
                     throw new CustomException("Replacement user must be an EMPLOYEE", HttpStatus.BAD_REQUEST, "INVALID_REASSIGNMENT");
                 }
                 if (user.getDepartment() != null && (newAssignee.getDepartment() == null || !newAssignee.getDepartment().getId().equals(user.getDepartment().getId()))) {
@@ -296,10 +304,10 @@ public class UserServiceImpl implements UserService {
                 Long deptId = user.getDepartment() != null ? user.getDepartment().getId() : null;
                 List<User> otherActiveUsers = (deptId != null)
                         ? userRepository.findByDepartmentId(deptId).stream()
-                                .filter(u -> Boolean.TRUE.equals(u.getIsActive()) && !u.getId().equals(user.getId()) && u.getRole() == RoleEnum.EMPLOYEE)
+                                .filter(u -> Boolean.TRUE.equals(u.getIsActive()) && !u.getId().equals(user.getId()) && "EMPLOYEE".equals(u.getRole().getName()))
                                 .collect(Collectors.toList())
                         : userRepository.findAll().stream()
-                                .filter(u -> Boolean.TRUE.equals(u.getIsActive()) && !u.getId().equals(user.getId()) && u.getRole() == RoleEnum.EMPLOYEE)
+                                .filter(u -> Boolean.TRUE.equals(u.getIsActive()) && !u.getId().equals(user.getId()) && "EMPLOYEE".equals(u.getRole().getName()))
                                 .collect(Collectors.toList());
 
                 if (!otherActiveUsers.isEmpty()) {
@@ -322,7 +330,7 @@ public class UserServiceImpl implements UserService {
             }
             if (creatorReplacement == null) {
                 creatorReplacement = userRepository.findAll().stream()
-                        .filter(u -> !u.getId().equals(user.getId()) && u.getRole() == RoleEnum.ADMIN)
+                        .filter(u -> !u.getId().equals(user.getId()) && "ADMIN".equals(u.getRole().getName()))
                         .findFirst()
                         .orElseGet(() -> userRepository.findAll().stream()
                                 .filter(u -> !u.getId().equals(user.getId()) && Boolean.TRUE.equals(u.getIsActive()))
@@ -344,18 +352,23 @@ public class UserServiceImpl implements UserService {
     }
 
     private void validateNotAdminTarget(User targetUser) {
-        if (targetUser.getRole() == RoleEnum.ADMIN) {
+        if ("ADMIN".equals(targetUser.getRole().getName())) {
             throw new CustomException("Cannot modify or manage Admin accounts", HttpStatus.FORBIDDEN, "FORBIDDEN_ADMIN_ACTION");
         }
     }
 
     private UserResponse mapToUserResponse(User user) {
+        java.util.List<String> permissions = user.getRole().getPermissions().stream()
+                .map(com.example.demo.entity.Permission::getName)
+                .collect(Collectors.toList());
+
         return UserResponse.builder()
                 .id(user.getId())
                 .username(user.getUsername())
                 .email(user.getEmail())
                 .fullName(user.getFullName())
-                .role(user.getRole())
+                .role(user.getRole().getName())
+                .permissions(permissions)
                 .departmentId(user.getDepartment() != null ? user.getDepartment().getId() : null)
                 .departmentName(user.getDepartment() != null ? user.getDepartment().getName() : null)
                 .isActive(user.getIsActive())

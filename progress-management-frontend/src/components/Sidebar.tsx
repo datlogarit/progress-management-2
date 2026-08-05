@@ -12,9 +12,9 @@ import {
 import './Sidebar.css';
 
 export function Sidebar() {
-  const { user } = useAuth();
-  const isAdmin = user?.role === 'ADMIN';
-  const isLeader = user?.role === 'LEADER';
+  const { user, hasPermission } = useAuth();
+  const isAdmin = hasPermission('SYSTEM_MANAGE');
+  const isLeader = hasPermission('TASK_ASSIGN') && !isAdmin;
 
   return (
     <aside className="app-sidebar">

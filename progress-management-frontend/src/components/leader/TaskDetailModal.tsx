@@ -34,7 +34,8 @@ export function TaskDetailModal({
   task,
   onTaskUpdated,
 }: TaskDetailModalProps) {
-  const { user } = useAuth();
+  const { user, hasPermission } = useAuth();
+  const isLeader = hasPermission('TASK_ASSIGN') && !hasPermission('SYSTEM_MANAGE');
   const [currentTask, setCurrentTask] = useState<TaskDTO | null>(task);
   const [comments, setComments] = useState<CommentDTO[]>([]);
   const [newComment, setNewComment] = useState('');
@@ -106,7 +107,7 @@ export function TaskDetailModal({
           <div className="detail-meta-grid">
             <div className="meta-item">
               <span className="meta-label">Trạng thái:</span>
-              {user?.role === 'LEADER' ? (
+              {isLeader ? (
                 <span className={`status-pill ${currentTask.status.toLowerCase()}`}>
                   {currentTask.status === 'COMPLETED'
                     ? 'Hoàn thành'

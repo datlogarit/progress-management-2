@@ -18,7 +18,8 @@ public class UserResponse {
     private String username;
     private String email;
     private String fullName;
-    private RoleEnum role;
+    private String role;
+    private java.util.List<String> permissions;
     private Long departmentId;
     private String departmentName;
     private Boolean isActive;

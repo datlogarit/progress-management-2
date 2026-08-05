@@ -29,7 +29,7 @@ import {
 import './LeaderTaskManagementPage.css';
 
 export function LeaderTaskManagementPage() {
-  const { user } = useAuth();
+  const { user, hasPermission } = useAuth();
   const [tasks, setTasks] = useState<TaskDTO[]>([]);
   const [departmentMembers, setDepartmentMembers] = useState<UserDTO[]>([]);
   const [loading, setLoading] = useState(true);
@@ -170,9 +170,11 @@ export function LeaderTaskManagementPage() {
                 </button>
               </div>
 
-              <button className="btn-primary-add" onClick={() => { setEditingTask(null); setIsCreateModalOpen(true); }}>
-                <Plus size={18} /> Tạo Task Mới
-              </button>
+              {hasPermission('TASK_CREATE') && (
+                <button className="btn-primary-add" onClick={() => { setEditingTask(null); setIsCreateModalOpen(true); }}>
+                  <Plus size={18} /> Tạo Task Mới
+                </button>
+              )}
             </div>
           </div>
 

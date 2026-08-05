@@ -10,6 +10,7 @@ interface AuthContextType {
   loading: boolean;
   login: (authData: AuthResponseDTO) => void;
   logout: () => void;
+  hasPermission: (permission: string) => boolean;
 }
 
 const AuthContext = createContext<AuthContextType | null>(null);
@@ -51,6 +52,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setUser(null);
   };
 
+  const hasPermission = (permission: string) => {
+    if (!user || !user.permissions) return false;
+    return user.permissions.includes(permission);
+  };
+
   return (
     <AuthContext.Provider
       value={{
@@ -60,6 +66,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         loading,
         login,
         logout,
+        hasPermission,
       }}
     >
       {children}

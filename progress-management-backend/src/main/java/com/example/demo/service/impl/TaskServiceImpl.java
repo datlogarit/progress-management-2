@@ -1,7 +1,7 @@
 package com.example.demo.service.impl;
 
 import com.example.demo.constant.NotificationType;
-import com.example.demo.constant.RoleEnum;
+
 import com.example.demo.constant.TaskPriority;
 import com.example.demo.constant.TaskStatus;
 import com.example.demo.dto.request.AssignTaskRequest;
@@ -80,7 +80,7 @@ public class TaskServiceImpl implements TaskService {
                 throw new CustomException("Assignee does not belong to the target department", HttpStatus.BAD_REQUEST, "INVALID_ASSIGNEE");
             }
 
-            if (assignee.getRole() != RoleEnum.EMPLOYEE) {
+            if (!"EMPLOYEE".equals(assignee.getRole().getName())) {
                 throw new CustomException("Chỉ được giao công việc cho Nhân viên (role EMPLOYEE)", HttpStatus.BAD_REQUEST, "INVALID_ASSIGNEE");
             }
         }
@@ -153,7 +153,7 @@ public class TaskServiceImpl implements TaskService {
                     throw new CustomException("Assignee does not belong to the task's department", HttpStatus.BAD_REQUEST, "INVALID_ASSIGNEE");
                 }
 
-                if (newAssignee.getRole() != RoleEnum.EMPLOYEE) {
+                if (!"EMPLOYEE".equals(newAssignee.getRole().getName())) {
                     throw new CustomException("Chỉ được giao công việc cho Nhân viên (role EMPLOYEE)", HttpStatus.BAD_REQUEST, "INVALID_ASSIGNEE");
                 }
 
@@ -192,7 +192,7 @@ public class TaskServiceImpl implements TaskService {
             throw new CustomException("Assignee does not belong to the task's department", HttpStatus.BAD_REQUEST, "INVALID_ASSIGNEE");
         }
 
-        if (assignee.getRole() != RoleEnum.EMPLOYEE) {
+        if (!"EMPLOYEE".equals(assignee.getRole().getName())) {
             throw new CustomException("Chỉ được giao công việc cho Nhân viên (role EMPLOYEE)", HttpStatus.BAD_REQUEST, "INVALID_ASSIGNEE");
         }
 
@@ -223,8 +223,8 @@ public class TaskServiceImpl implements TaskService {
 
         boolean isCreator = task.getCreatedBy().getId().equals(user.getId());
         boolean isAssignee = task.getAssignee() != null && task.getAssignee().getId().equals(user.getId());
-        boolean isAdmin = user.getRole() == RoleEnum.ADMIN;
-        boolean isLeader = user.getRole() == RoleEnum.LEADER;
+        boolean isAdmin = "ADMIN".equals(user.getRole().getName());
+        boolean isLeader = "LEADER".equals(user.getRole().getName());
 
         if (isLeader && !isAssignee && request.getStatus() != TaskStatus.CANCELLED) {
             throw new UnauthorizedException("Trưởng phòng chỉ có quyền hủy công việc, không được chuyển các trạng thái thực hiện khác.");
@@ -279,7 +279,7 @@ public class TaskServiceImpl implements TaskService {
                 .orElseThrow(() -> new ResourceNotFoundException("User not found with id: " + currentUser.getId()));
 
         // Validate view permission (must belong to department or be admin)
-        if (user.getRole() != RoleEnum.ADMIN) {
+        if (!"ADMIN".equals(user.getRole().getName()) && !"LEADER".equals(user.getRole().getName())) {
             if (user.getDepartment() == null || !user.getDepartment().getId().equals(task.getDepartment().getId())) {
                 throw new UnauthorizedException("You do not have permission to view this task");
             }
@@ -297,7 +297,7 @@ public class TaskServiceImpl implements TaskService {
                 .orElseThrow(() -> new ResourceNotFoundException("User not found with id: " + currentUser.getId()));
 
         Long deptIdToSearch = departmentId;
-        if (user.getRole() != RoleEnum.ADMIN) {
+        if (!"ADMIN".equals(user.getRole().getName()) && !"LEADER".equals(user.getRole().getName())) {
             if (user.getDepartment() == null) {
                 return List.of();
             }
@@ -358,11 +358,11 @@ public class TaskServiceImpl implements TaskService {
     }
 
     private void validateDepartmentPermission(User user, Long targetDepartmentId) {
-        if (user.getRole() == RoleEnum.ADMIN) {
+        if ("ADMIN".equals(user.getRole().getName())) {
             return;
         }
 
-        if (user.getRole() != RoleEnum.LEADER) {
+        if (!"LEADER".equals(user.getRole().getName())) {
             throw new UnauthorizedException("Only Leaders or Admins can perform this action");
         }
 

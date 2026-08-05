@@ -1,7 +1,7 @@
 package com.example.demo.service.impl;
 
 import com.example.demo.constant.NotificationType;
-import com.example.demo.constant.RoleEnum;
+
 import com.example.demo.dto.request.CreateCommentRequest;
 import com.example.demo.dto.response.CommentResponse;
 import com.example.demo.dto.response.UserSummaryDto;
@@ -45,7 +45,7 @@ public class CommentServiceImpl implements CommentService {
         User user = userRepository.findById(currentUser.getId())
                 .orElseThrow(() -> new ResourceNotFoundException("User not found with id: " + currentUser.getId()));
 
-        if (user.getRole() != RoleEnum.ADMIN) {
+        if (!"ADMIN".equals(user.getRole().getName()) && !"LEADER".equals(user.getRole().getName())) {
             if (user.getDepartment() == null || !user.getDepartment().getId().equals(task.getDepartment().getId())) {
                 throw new UnauthorizedException("You do not have permission to comment on this task");
             }
@@ -95,7 +95,7 @@ public class CommentServiceImpl implements CommentService {
         User user = userRepository.findById(currentUser.getId())
                 .orElseThrow(() -> new ResourceNotFoundException("User not found with id: " + currentUser.getId()));
 
-        if (user.getRole() != RoleEnum.ADMIN) {
+        if (!"ADMIN".equals(user.getRole().getName()) && !"LEADER".equals(user.getRole().getName())) {
             if (user.getDepartment() == null || !user.getDepartment().getId().equals(task.getDepartment().getId())) {
                 throw new UnauthorizedException("You do not have permission to view comments for this task");
             }

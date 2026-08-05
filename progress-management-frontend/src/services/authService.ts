@@ -10,7 +10,8 @@ export interface UserDTO {
   username: string;
   email: string;
   fullName: string;
-  role: 'ADMIN' | 'LEADER' | 'EMPLOYEE';
+  role: 'ADMIN' | 'LEADER' | 'EMPLOYEE' | string;
+  permissions: string[];
   departmentId: number | null;
   departmentName: string | null;
   isActive: boolean;
