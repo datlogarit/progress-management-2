@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import type { TaskDTO, TaskPriority, TaskStatus } from '../../services/taskService';
 import type { UserDTO } from '../../services/authService';
+import type { ProjectDTO } from '../../services/projectService';
 import { Modal } from '../Modal';
 import './CreateEditTaskModal.css';
 
@@ -10,6 +11,7 @@ interface CreateEditTaskModalProps {
   onSubmit: (formData: any) => Promise<void>;
   initialTask?: TaskDTO | null;
   departmentMembers: UserDTO[];
+  projects: ProjectDTO[];
 }
 
 export function CreateEditTaskModal({
@@ -18,6 +20,7 @@ export function CreateEditTaskModal({
   onSubmit,
   initialTask,
   departmentMembers,
+  projects,
 }: CreateEditTaskModalProps) {
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
@@ -25,6 +28,7 @@ export function CreateEditTaskModal({
   const [status, setStatus] = useState<TaskStatus>('PENDING');
   const [dueDate, setDueDate] = useState('');
   const [assigneeId, setAssigneeId] = useState<string>('');
+  const [projectId, setProjectId] = useState<string>('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -36,6 +40,7 @@ export function CreateEditTaskModal({
       setStatus(initialTask.status);
       setDueDate(initialTask.dueDate ? new Date(initialTask.dueDate).toISOString().slice(0, 16) : '');
       setAssigneeId(initialTask.assignee ? String(initialTask.assignee.id) : '');
+      setProjectId(initialTask.projectId ? String(initialTask.projectId) : '');
     } else {
       setTitle('');
       setDescription('');
@@ -43,6 +48,7 @@ export function CreateEditTaskModal({
       setStatus('PENDING');
       setDueDate('');
       setAssigneeId('');
+      setProjectId('');
     }
     setError(null);
   }, [initialTask, isOpen]);
@@ -61,6 +67,11 @@ export function CreateEditTaskModal({
     e.preventDefault();
     if (!title.trim()) {
       setError('Vui lòng nhập tiêu đề công việc');
+      return;
+    }
+    
+    if (!projectId) {
+      setError('Vui lòng chọn dự án cho công việc');
       return;
     }
 
@@ -82,6 +93,7 @@ export function CreateEditTaskModal({
         status: initialTask ? status : undefined,
         dueDate: dueDate ? new Date(dueDate).toISOString() : undefined,
         assigneeId: assigneeId ? Number(assigneeId) : null,
+        projectId: Number(projectId),
       });
       onClose();
     } catch (err: any) {
@@ -124,6 +136,24 @@ export function CreateEditTaskModal({
             onChange={(e) => setDescription(e.target.value)}
             disabled={loading || Boolean(initialTask)}
           />
+        </div>
+
+        <div className="form-group">
+          <label htmlFor="task-project">Thuộc dự án <span className="required">*</span></label>
+          <select
+            id="task-project"
+            className="form-control"
+            value={projectId}
+            onChange={(e) => setProjectId(e.target.value)}
+            disabled={loading || Boolean(initialTask)} // Project usually shouldn't change after creation
+          >
+            <option value="">-- Chọn dự án --</option>
+            {projects.map((p) => (
+              <option key={p.id} value={p.id}>
+                {p.name}
+              </option>
+            ))}
+          </select>
         </div>
 
         <div className="form-row">

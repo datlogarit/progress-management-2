@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { LogOut, UserCircle, Shield, Bell, CheckCheck, MessageSquare, CheckCircle2, UserPlus } from 'lucide-react';
 import { 
@@ -16,6 +17,7 @@ interface HeaderProps {
 
 export function Header({ title }: HeaderProps) {
   const { user, logout } = useAuth();
+  const navigate = useNavigate();
   const [notifications, setNotifications] = useState<NotificationDTO[]>([]);
   const [unreadCount, setUnreadCount] = useState<number>(0);
   const [showNotifications, setShowNotifications] = useState<boolean>(false);
@@ -48,13 +50,22 @@ export function Header({ title }: HeaderProps) {
     setShowNotifications(!showNotifications);
   };
 
-  const handleMarkAsRead = async (id: number) => {
-    try {
-      await markNotificationAsReadApi(id);
-      setNotifications(prev => prev.map(n => n.id === id ? { ...n, isRead: true } : n));
-      setUnreadCount(prev => Math.max(0, prev - 1));
-    } catch (err) {
-      console.error(err);
+  const handleNotificationClick = async (item: NotificationDTO) => {
+    if (!item.isRead) {
+      try {
+        await markNotificationAsReadApi(item.id);
+        setNotifications(prev => prev.map(n => n.id === item.id ? { ...n, isRead: true } : n));
+        setUnreadCount(prev => Math.max(0, prev - 1));
+      } catch (err) {
+        console.error(err);
+      }
+    }
+    
+    setShowNotifications(false);
+    
+    if (item.taskId) {
+      const baseUrl = user?.role === 'LEADER' ? '/leader/tasks' : '/employee/tasks';
+      navigate(`${baseUrl}?taskId=${item.taskId}${item.commentId ? `&commentId=${item.commentId}` : ''}`);
     }
   };
 
@@ -133,7 +144,8 @@ export function Header({ title }: HeaderProps) {
                     <div 
                       key={item.id} 
                       className={`notif-item ${!item.isRead ? 'unread' : ''}`}
-                      onClick={() => !item.isRead && handleMarkAsRead(item.id)}
+                      onClick={() => handleNotificationClick(item)}
+                      style={{ cursor: item.taskId ? 'pointer' : 'default' }}
                     >
                       <div className="notif-icon-wrapper">
                         {getNotificationIcon(item.type)}

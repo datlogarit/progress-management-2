@@ -6,6 +6,7 @@ import { CreateEditTaskModal } from '../../components/leader/CreateEditTaskModal
 import { TaskDetailModal } from '../../components/leader/TaskDetailModal';
 import { getTasksApi, createTaskApi, type TaskDTO } from '../../services/taskService';
 import { getAllUsersApi, type UserDTO } from '../../services/userService';
+import { getProjectsApi, type ProjectDTO } from '../../services/projectService';
 import { useAuth } from '../../context/AuthContext';
 import { 
   FolderKanban, 
@@ -22,6 +23,7 @@ export function LeaderDashboardPage() {
   const { user } = useAuth();
   const [tasks, setTasks] = useState<TaskDTO[]>([]);
   const [departmentMembers, setDepartmentMembers] = useState<UserDTO[]>([]);
+  const [projects, setProjects] = useState<ProjectDTO[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -33,12 +35,14 @@ export function LeaderDashboardPage() {
     setLoading(true);
     setError(null);
     try {
-      const [tasksData, usersData] = await Promise.all([
+      const [tasksData, usersData, projectsData] = await Promise.all([
         getTasksApi(),
         user?.departmentId ? getAllUsersApi(user.departmentId) : getAllUsersApi(),
+        getProjectsApi(user?.departmentId || undefined)
       ]);
       setTasks(tasksData);
       setDepartmentMembers(usersData);
+      setProjects(projectsData);
     } catch (err: any) {
       setError(err.message || 'Không thể tải dữ liệu');
     } finally {
@@ -212,6 +216,7 @@ export function LeaderDashboardPage() {
         onClose={() => setIsCreateModalOpen(false)}
         onSubmit={handleCreateTask}
         departmentMembers={departmentMembers}
+        projects={projects}
       />
 
       <TaskDetailModal

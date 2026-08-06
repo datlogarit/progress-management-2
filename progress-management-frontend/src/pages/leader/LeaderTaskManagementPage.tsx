@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { Sidebar } from '../../components/Sidebar';
 import { Header } from '../../components/Header';
 import { TaskCard } from '../../components/leader/TaskCard';
@@ -12,6 +13,7 @@ import {
   type TaskDTO
 } from '../../services/taskService';
 import { getAllUsersApi, type UserDTO } from '../../services/userService';
+import { getProjectsApi, type ProjectDTO } from '../../services/projectService';
 import { useAuth } from '../../context/AuthContext';
 import { 
   Plus, 
@@ -32,6 +34,7 @@ export function LeaderTaskManagementPage() {
   const { user, hasPermission } = useAuth();
   const [tasks, setTasks] = useState<TaskDTO[]>([]);
   const [departmentMembers, setDepartmentMembers] = useState<UserDTO[]>([]);
+  const [projects, setProjects] = useState<ProjectDTO[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -40,22 +43,29 @@ export function LeaderTaskManagementPage() {
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedStatus, setSelectedStatus] = useState<string>('ALL');
   const [selectedAssignee, setSelectedAssignee] = useState<string>('ALL');
+  const [selectedProjectFilter, setSelectedProjectFilter] = useState<string>('ALL');
 
   // Modals state
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
   const [editingTask, setEditingTask] = useState<TaskDTO | null>(null);
   const [detailTask, setDetailTask] = useState<TaskDTO | null>(null);
 
+  const [searchParams, setSearchParams] = useSearchParams();
+  const taskIdParam = searchParams.get('taskId');
+  const commentIdParam = searchParams.get('commentId'); // Pass to modal later
+
   const fetchData = async () => {
     setLoading(true);
     setError(null);
     try {
-      const [tasksData, usersData] = await Promise.all([
+      const [tasksData, usersData, projectsData] = await Promise.all([
         getTasksApi(),
         user?.departmentId ? getAllUsersApi(user.departmentId) : getAllUsersApi(),
+        getProjectsApi(user?.departmentId || undefined)
       ]);
       setTasks(tasksData);
       setDepartmentMembers(usersData);
+      setProjects(projectsData);
     } catch (err: any) {
       setError(err.message || 'Không thể tải danh sách công việc');
     } finally {
@@ -66,6 +76,24 @@ export function LeaderTaskManagementPage() {
   useEffect(() => {
     fetchData();
   }, [user]);
+
+  useEffect(() => {
+    if (tasks.length > 0 && taskIdParam) {
+      const taskToOpen = tasks.find(t => t.id === Number(taskIdParam));
+      if (taskToOpen && (!detailTask || detailTask.id !== taskToOpen.id)) {
+        setDetailTask(taskToOpen);
+      }
+    }
+  }, [tasks, taskIdParam]);
+
+  const handleCloseDetailModal = () => {
+    setDetailTask(null);
+    if (taskIdParam) {
+      searchParams.delete('taskId');
+      searchParams.delete('commentId');
+      setSearchParams(searchParams);
+    }
+  };
 
   const handleCreateOrUpdateTask = async (formData: any) => {
     if (editingTask) {
@@ -94,8 +122,9 @@ export function LeaderTaskManagementPage() {
     const matchesStatus = selectedStatus === 'ALL' || t.status === selectedStatus;
     const matchesAssignee = selectedAssignee === 'ALL' || 
       (selectedAssignee === 'UNASSIGNED' ? !t.assignee : t.assignee?.id === Number(selectedAssignee));
+    const matchesProject = selectedProjectFilter === 'ALL' || t.projectId === Number(selectedProjectFilter);
 
-    return matchesSearch && matchesStatus && matchesAssignee;
+    return matchesSearch && matchesStatus && matchesAssignee && matchesProject;
   });
 
   const pendingTasks = filteredTasks.filter(t => t.status === 'PENDING');
@@ -128,6 +157,17 @@ export function LeaderTaskManagementPage() {
 
               <div className="filter-select-wrapper">
                 <Filter size={16} className="filter-icon" />
+                <select value={selectedProjectFilter} onChange={(e) => setSelectedProjectFilter(e.target.value)}>
+                  <option value="ALL">Tất cả dự án</option>
+                  {projects.map((p) => (
+                    <option key={p.id} value={p.id}>
+                      {p.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <div className="filter-select-wrapper">
                 <select value={selectedStatus} onChange={(e) => setSelectedStatus(e.target.value)}>
                   <option value="ALL">Tất cả trạng thái</option>
                   <option value="PENDING">Chưa làm</option>
@@ -329,17 +369,19 @@ export function LeaderTaskManagementPage() {
         onSubmit={handleCreateOrUpdateTask}
         initialTask={editingTask}
         departmentMembers={departmentMembers}
+        projects={projects}
       />
 
       <TaskDetailModal
         isOpen={detailTask !== null}
-        onClose={() => setDetailTask(null)}
+        onClose={handleCloseDetailModal}
         task={detailTask}
         departmentMembers={departmentMembers}
         onTaskUpdated={(updated) => {
           setDetailTask(updated);
           setTasks(prev => prev.map(t => t.id === updated.id ? updated : t));
         }}
+        highlightedCommentId={commentIdParam ? Number(commentIdParam) : undefined}
       />
     </div>
   );

@@ -3,12 +3,14 @@ package com.example.demo.controller;
 import com.example.demo.dto.request.CreateProjectRequest;
 import com.example.demo.dto.request.UpdateProjectRequest;
 import com.example.demo.dto.response.ProjectResponse;
+import com.example.demo.security.UserPrincipal;
 import com.example.demo.service.ProjectService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -24,8 +26,9 @@ public class ProjectController {
     @GetMapping
     @PreAuthorize("hasAuthority('PROJECT_READ')")
     public ResponseEntity<List<ProjectResponse>> getAllProjects(
-            @RequestParam(required = false) Long departmentId) {
-        List<ProjectResponse> projects = projectService.getAllProjects(departmentId);
+            @RequestParam(required = false) Long departmentId,
+            @AuthenticationPrincipal UserPrincipal currentUser) {
+        List<ProjectResponse> projects = projectService.getAllProjects(departmentId, currentUser);
         return ResponseEntity.ok(projects);
     }
 

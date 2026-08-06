@@ -26,6 +26,7 @@ interface TaskDetailModalProps {
   task: TaskDTO | null;
   departmentMembers?: UserDTO[];
   onTaskUpdated?: (updatedTask: TaskDTO) => void;
+  highlightedCommentId?: number;
 }
 
 export function TaskDetailModal({
@@ -33,6 +34,7 @@ export function TaskDetailModal({
   onClose,
   task,
   onTaskUpdated,
+  highlightedCommentId,
 }: TaskDetailModalProps) {
   const { hasPermission } = useAuth();
   const isLeader = hasPermission('TASK_ASSIGN') && !hasPermission('SYSTEM_MANAGE');
@@ -63,6 +65,17 @@ export function TaskDetailModal({
       setLoadingComments(false);
     }
   };
+
+  useEffect(() => {
+    if (highlightedCommentId && comments.length > 0) {
+      setTimeout(() => {
+        const commentEl = document.getElementById(`comment-${highlightedCommentId}`);
+        if (commentEl) {
+          commentEl.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        }
+      }, 100);
+    }
+  }, [highlightedCommentId, comments]);
 
   const handleStatusChange = async (newStatus: TaskStatus) => {
     if (!currentTask) return;
@@ -159,9 +172,9 @@ export function TaskDetailModal({
             </div>
 
             <div className="meta-item">
-              <span className="meta-label">Phòng ban:</span>
+              <span className="meta-label">Thuộc dự án:</span>
               <span className="meta-value">
-                <Building2 size={14} /> {currentTask.departmentName}
+                <Building2 size={14} /> {currentTask.projectName}
               </span>
             </div>
 
@@ -196,7 +209,11 @@ export function TaskDetailModal({
               <p className="comments-empty">Chưa có bình luận nào. Hãy gửi bình luận đầu tiên!</p>
             ) : (
               comments.map((comment) => (
-                <div key={comment.id} className="comment-bubble">
+                <div 
+                  key={comment.id} 
+                  id={`comment-${comment.id}`}
+                  className={`comment-bubble ${highlightedCommentId === comment.id ? 'highlighted-comment' : ''}`}
+                >
                   <div className="comment-header">
                     <span className="comment-author">{comment.user.fullName}</span>
                     <span className="comment-time">

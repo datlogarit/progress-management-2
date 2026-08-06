@@ -24,6 +24,8 @@ import java.util.List;
 import java.util.Set;
 import java.util.stream.Collectors;
 
+import com.example.demo.security.UserPrincipal;
+
 @Slf4j
 @Service
 @RequiredArgsConstructor
@@ -35,14 +37,25 @@ public class ProjectServiceImpl implements ProjectService {
 
     @Override
     @Transactional(readOnly = true)
-    public List<ProjectResponse> getAllProjects(Long departmentId) {
+    public List<ProjectResponse> getAllProjects(Long departmentId, UserPrincipal currentUser) {
         log.info("Fetching projects, departmentId={}", departmentId);
+        
+        User user = userRepository.findById(currentUser.getId())
+                .orElseThrow(() -> new ResourceNotFoundException("User not found with id: " + currentUser.getId()));
+
         List<Project> projects;
         if (departmentId != null) {
             projects = projectRepository.findByDepartmentId(departmentId);
         } else {
             projects = projectRepository.findAll();
         }
+
+        if (!"ADMIN".equals(user.getRole().getName())) {
+            projects = projects.stream()
+                    .filter(p -> p.getMembers().stream().anyMatch(member -> member.getId().equals(user.getId())))
+                    .collect(Collectors.toList());
+        }
+
         return projects.stream().map(this::mapToResponse).collect(Collectors.toList());
     }
 

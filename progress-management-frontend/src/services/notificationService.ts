@@ -16,6 +16,7 @@ export interface NotificationDTO {
   message: string;
   type: NotificationType;
   taskId?: number;
+  commentId?: number;
   isRead: boolean;
   createdAt: string;
 }

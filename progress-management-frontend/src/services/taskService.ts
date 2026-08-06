@@ -27,8 +27,8 @@ export interface TaskDTO {
   dueDate?: string;
   createdBy: UserSummary;
   assignee?: UserSummary;
-  departmentId: number;
-  departmentName: string;
+  projectId: number;
+  projectName: string;
   createdAt: string;
   updatedAt: string;
 }
@@ -47,7 +47,7 @@ export interface CreateTaskParams {
   priority?: TaskPriority;
   dueDate?: string;
   assigneeId?: number | null;
-  departmentId?: number | null;
+  projectId?: number | null;
 }
 
 export interface UpdateTaskParams {
@@ -60,14 +60,14 @@ export interface UpdateTaskParams {
 }
 
 export interface GetTasksParams {
-  departmentId?: number;
+  projectId?: number;
   assigneeId?: number;
   status?: TaskStatus;
 }
 
 export async function getTasksApi(params?: GetTasksParams): Promise<TaskDTO[]> {
   const query = new URLSearchParams();
-  if (params?.departmentId) query.append('departmentId', params.departmentId.toString());
+  if (params?.projectId) query.append('projectId', params.projectId.toString());
   if (params?.assigneeId) query.append('assigneeId', params.assigneeId.toString());
   if (params?.status) query.append('status', params.status);
 
