@@ -11,9 +11,9 @@ import java.util.List;
 @Repository
 public interface TaskRepository extends JpaRepository<Task, Long>, JpaSpecificationExecutor<Task> {
 
-    List<Task> findByDepartmentId(Long departmentId);
+    List<Task> findByProjectId(Long projectId);
 
-    List<Task> findByDepartmentIdAndStatus(Long departmentId, TaskStatus status);
+    List<Task> findByProjectIdAndStatus(Long projectId, TaskStatus status);
 
     List<Task> findByCreatedById(Long createdById);
 
@@ -21,7 +21,7 @@ public interface TaskRepository extends JpaRepository<Task, Long>, JpaSpecificat
 
     List<Task> findByAssigneeIdAndStatus(Long assigneeId, TaskStatus status);
 
-    List<Task> findByDepartmentIdAndAssigneeId(Long departmentId, Long assigneeId);
+    List<Task> findByProjectIdAndAssigneeId(Long projectId, Long assigneeId);
 
-    List<Task> findByDepartmentIdAndAssigneeIdAndStatus(Long departmentId, Long assigneeId, TaskStatus status);
+    List<Task> findByProjectIdAndAssigneeIdAndStatus(Long projectId, Long assigneeId, TaskStatus status);
 }

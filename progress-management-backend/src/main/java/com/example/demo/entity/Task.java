@@ -50,8 +50,8 @@ public class Task {
     private User assignee;
 
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "department_id", nullable = false)
-    private Department department;
+    @JoinColumn(name = "project_id", nullable = false)
+    private Project project;
 
     @CreationTimestamp
     @Column(name = "created_at", nullable = false, updatable = false)

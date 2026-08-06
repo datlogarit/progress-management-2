@@ -22,7 +22,7 @@ public interface TaskService {
 
     TaskResponse getTaskById(Long id, UserPrincipal currentUser);
 
-    List<TaskResponse> getTasks(Long departmentId, Long assigneeId, TaskStatus status, UserPrincipal currentUser);
+    List<TaskResponse> getTasks(Long projectId, Long assigneeId, TaskStatus status, UserPrincipal currentUser);
 
     List<TaskResponse> getMyTasks(TaskStatus status, UserPrincipal currentUser);
 

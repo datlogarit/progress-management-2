@@ -12,7 +12,7 @@ import {
 import './Sidebar.css';
 
 export function Sidebar() {
-  const { user, hasPermission } = useAuth();
+  const { hasPermission } = useAuth();
   const isAdmin = hasPermission('SYSTEM_MANAGE');
   const isLeader = hasPermission('TASK_ASSIGN') && !isAdmin;
 
@@ -56,6 +56,14 @@ export function Sidebar() {
             >
               <Building2 size={18} className="nav-icon" />
               <span>Quản lý Phòng ban</span>
+            </NavLink>
+
+            <NavLink 
+              to="/admin/projects" 
+              className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`}
+            >
+              <FolderKanban size={18} className="nav-icon" />
+              <span>Quản lý Dự án</span>
             </NavLink>
           </>
         )}

@@ -28,5 +28,5 @@ public class CreateTaskRequest {
 
     private Long assigneeId;
 
-    private Long departmentId;
+    private Long projectId;
 }

@@ -34,7 +34,7 @@ export function TaskDetailModal({
   task,
   onTaskUpdated,
 }: TaskDetailModalProps) {
-  const { user, hasPermission } = useAuth();
+  const { hasPermission } = useAuth();
   const isLeader = hasPermission('TASK_ASSIGN') && !hasPermission('SYSTEM_MANAGE');
   const [currentTask, setCurrentTask] = useState<TaskDTO | null>(task);
   const [comments, setComments] = useState<CommentDTO[]>([]);

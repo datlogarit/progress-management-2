@@ -61,11 +61,11 @@ public class DataSeeder implements CommandLineRunner {
                     rolePermissions = new HashSet<>(permissionRepository.findAll());
                 } else if (roleEnum == RoleEnum.LEADER) {
                     rolePermissions = permissionRepository.findAll().stream()
-                            .filter(p -> p.getName().startsWith("TASK_") || p.getName().equals("USER_READ") || p.getName().equals("DEPARTMENT_READ"))
+                            .filter(p -> p.getName().startsWith("TASK_") || p.getName().equals("USER_READ") || p.getName().equals("DEPARTMENT_READ") || p.getName().equals("PROJECT_READ"))
                             .collect(Collectors.toSet());
                 } else if (roleEnum == RoleEnum.EMPLOYEE) {
                     rolePermissions = permissionRepository.findAll().stream()
-                            .filter(p -> p.getName().equals("TASK_READ") || p.getName().equals("TASK_UPDATE"))
+                            .filter(p -> p.getName().equals("TASK_READ") || p.getName().equals("TASK_UPDATE") || p.getName().equals("PROJECT_READ"))
                             .collect(Collectors.toSet());
                 }
 

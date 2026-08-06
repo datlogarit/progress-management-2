@@ -20,6 +20,12 @@ public enum PermissionEnum {
     USER_UPDATE("Update users"),
     USER_DELETE("Delete users"),
 
+    // PROJECT Permissions
+    PROJECT_READ("Read projects"),
+    PROJECT_CREATE("Create projects"),
+    PROJECT_UPDATE("Update projects"),
+    PROJECT_DELETE("Delete projects"),
+
     // DEPARTMENT Permissions
     DEPARTMENT_READ("Read departments"),
     DEPARTMENT_CREATE("Create departments"),

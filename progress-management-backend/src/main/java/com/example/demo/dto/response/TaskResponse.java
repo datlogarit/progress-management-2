@@ -22,8 +22,8 @@ public class TaskResponse {
     private LocalDateTime dueDate;
     private UserSummaryDto createdBy;
     private UserSummaryDto assignee;
-    private Long departmentId;
-    private String departmentName;
+    private Long projectId;
+    private String projectName;
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
 }

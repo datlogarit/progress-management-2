@@ -5,6 +5,7 @@ import LoginPage from './pages/LoginPage';
 import { AdminDashboardPage } from './pages/admin/AdminDashboardPage';
 import { UserManagementPage } from './pages/admin/UserManagementPage';
 import { DepartmentManagementPage } from './pages/admin/DepartmentManagementPage';
+import { ProjectManagementPage } from './pages/admin/ProjectManagementPage';
 import { LeaderDashboardPage } from './pages/leader/LeaderDashboardPage';
 import { LeaderTaskManagementPage } from './pages/leader/LeaderTaskManagementPage';
 import { LeaderTeamPage } from './pages/leader/LeaderTeamPage';
@@ -14,11 +15,11 @@ import './index.css';
 
 interface ProtectedRouteProps {
   children: ReactNode;
-  allowedRoles?: Array<'ADMIN' | 'LEADER' | 'EMPLOYEE'>;
+  requiredPermissions?: string[];
 }
 
-function ProtectedRoute({ children, allowedRoles }: ProtectedRouteProps) {
-  const { isAuthenticated, user, loading } = useAuth();
+function ProtectedRoute({ children, requiredPermissions }: ProtectedRouteProps) {
+  const { isAuthenticated, loading, hasPermission } = useAuth();
 
   if (loading) {
     return (
@@ -32,26 +33,29 @@ function ProtectedRoute({ children, allowedRoles }: ProtectedRouteProps) {
     return <Navigate to="/login" replace />;
   }
 
-  if (allowedRoles && user && !allowedRoles.includes(user.role)) {
-    if (user.role === 'ADMIN') {
-      return <Navigate to="/admin/dashboard" replace />;
+  if (requiredPermissions && requiredPermissions.length > 0) {
+    const hasAccess = requiredPermissions.every(permission => hasPermission(permission));
+    if (!hasAccess) {
+      if (hasPermission('SYSTEM_MANAGE')) {
+        return <Navigate to="/admin/dashboard" replace />;
+      }
+      if (hasPermission('TASK_ASSIGN')) {
+        return <Navigate to="/leader/dashboard" replace />;
+      }
+      return <Navigate to="/employee/dashboard" replace />;
     }
-    if (user.role === 'LEADER') {
-      return <Navigate to="/leader/dashboard" replace />;
-    }
-    return <Navigate to="/employee/dashboard" replace />;
   }
 
   return <>{children}</>;
 }
 
 function RootRedirect() {
-  const { user } = useAuth();
+  const { hasPermission } = useAuth();
 
-  if (user?.role === 'ADMIN') {
+  if (hasPermission('SYSTEM_MANAGE')) {
     return <Navigate to="/admin/dashboard" replace />;
   }
-  if (user?.role === 'LEADER') {
+  if (hasPermission('TASK_ASSIGN')) {
     return <Navigate to="/leader/dashboard" replace />;
   }
   return <Navigate to="/employee/dashboard" replace />;
@@ -78,7 +82,7 @@ function App() {
           <Route
             path="/admin/dashboard"
             element={
-              <ProtectedRoute allowedRoles={['ADMIN']}>
+              <ProtectedRoute requiredPermissions={['SYSTEM_MANAGE']}>
                 <AdminDashboardPage />
               </ProtectedRoute>
             }
@@ -86,7 +90,7 @@ function App() {
           <Route
             path="/admin/users"
             element={
-              <ProtectedRoute allowedRoles={['ADMIN']}>
+              <ProtectedRoute requiredPermissions={['USER_READ', 'USER_CREATE']}>
                 <UserManagementPage />
               </ProtectedRoute>
             }
@@ -94,8 +98,16 @@ function App() {
           <Route
             path="/admin/departments"
             element={
-              <ProtectedRoute allowedRoles={['ADMIN']}>
+              <ProtectedRoute requiredPermissions={['DEPARTMENT_CREATE', 'DEPARTMENT_UPDATE']}>
                 <DepartmentManagementPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/admin/projects"
+            element={
+              <ProtectedRoute requiredPermissions={['PROJECT_CREATE', 'PROJECT_UPDATE']}>
+                <ProjectManagementPage />
               </ProtectedRoute>
             }
           />
@@ -104,7 +116,7 @@ function App() {
           <Route
             path="/leader/dashboard"
             element={
-              <ProtectedRoute allowedRoles={['LEADER']}>
+              <ProtectedRoute requiredPermissions={['TASK_ASSIGN']}>
                 <LeaderDashboardPage />
               </ProtectedRoute>
             }
@@ -112,7 +124,7 @@ function App() {
           <Route
             path="/leader/tasks"
             element={
-              <ProtectedRoute allowedRoles={['LEADER']}>
+              <ProtectedRoute requiredPermissions={['TASK_ASSIGN']}>
                 <LeaderTaskManagementPage />
               </ProtectedRoute>
             }
@@ -120,7 +132,7 @@ function App() {
           <Route
             path="/leader/team"
             element={
-              <ProtectedRoute allowedRoles={['LEADER']}>
+              <ProtectedRoute requiredPermissions={['TASK_ASSIGN']}>
                 <LeaderTeamPage />
               </ProtectedRoute>
             }
@@ -130,7 +142,7 @@ function App() {
           <Route
             path="/employee/dashboard"
             element={
-              <ProtectedRoute allowedRoles={['EMPLOYEE']}>
+              <ProtectedRoute requiredPermissions={['TASK_READ']}>
                 <EmployeeDashboardPage />
               </ProtectedRoute>
             }
@@ -138,7 +150,7 @@ function App() {
           <Route
             path="/employee/tasks"
             element={
-              <ProtectedRoute allowedRoles={['EMPLOYEE']}>
+              <ProtectedRoute requiredPermissions={['TASK_READ']}>
                 <EmployeeTasksPage />
               </ProtectedRoute>
             }

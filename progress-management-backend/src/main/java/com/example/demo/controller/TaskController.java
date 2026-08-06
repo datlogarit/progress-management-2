@@ -27,7 +27,7 @@ public class TaskController {
     private final CommentService commentService;
 
     @PostMapping
-    @PreAuthorize("hasAnyRole('LEADER', 'ADMIN')")
+    @PreAuthorize("hasAuthority('TASK_CREATE')")
     public ResponseEntity<TaskResponse> createTask(
             @Valid @RequestBody CreateTaskRequest request,
             @AuthenticationPrincipal UserPrincipal currentUser) {
@@ -36,18 +36,18 @@ public class TaskController {
     }
 
     @GetMapping
-    @PreAuthorize("hasAnyRole('LEADER', 'EMPLOYEE', 'ADMIN')")
+    @PreAuthorize("hasAuthority('TASK_READ')")
     public ResponseEntity<List<TaskResponse>> getTasks(
-            @RequestParam(required = false) Long departmentId,
+            @RequestParam(required = false) Long projectId,
             @RequestParam(required = false) Long assigneeId,
             @RequestParam(required = false) TaskStatus status,
             @AuthenticationPrincipal UserPrincipal currentUser) {
-        List<TaskResponse> tasks = taskService.getTasks(departmentId, assigneeId, status, currentUser);
+        List<TaskResponse> tasks = taskService.getTasks(projectId, assigneeId, status, currentUser);
         return ResponseEntity.ok(tasks);
     }
 
     @GetMapping("/my-tasks")
-    @PreAuthorize("hasAnyRole('LEADER', 'EMPLOYEE', 'ADMIN')")
+    @PreAuthorize("hasAuthority('TASK_READ')")
     public ResponseEntity<List<TaskResponse>> getMyTasks(
             @RequestParam(required = false) TaskStatus status,
             @AuthenticationPrincipal UserPrincipal currentUser) {
@@ -56,7 +56,7 @@ public class TaskController {
     }
 
     @GetMapping("/{id}")
-    @PreAuthorize("hasAnyRole('LEADER', 'EMPLOYEE', 'ADMIN')")
+    @PreAuthorize("hasAuthority('TASK_READ')")
     public ResponseEntity<TaskResponse> getTaskById(
             @PathVariable Long id,
             @AuthenticationPrincipal UserPrincipal currentUser) {
@@ -65,7 +65,7 @@ public class TaskController {
     }
 
     @PutMapping("/{id}")
-    @PreAuthorize("hasAnyRole('LEADER', 'ADMIN')")
+    @PreAuthorize("hasAuthority('TASK_UPDATE')")
     public ResponseEntity<TaskResponse> updateTask(
             @PathVariable Long id,
             @Valid @RequestBody UpdateTaskRequest request,
@@ -75,7 +75,7 @@ public class TaskController {
     }
 
     @PatchMapping("/{id}/assign")
-    @PreAuthorize("hasAnyRole('LEADER', 'ADMIN')")
+    @PreAuthorize("hasAuthority('TASK_ASSIGN')")
     public ResponseEntity<TaskResponse> assignTask(
             @PathVariable Long id,
             @Valid @RequestBody AssignTaskRequest request,
@@ -85,7 +85,7 @@ public class TaskController {
     }
 
     @PatchMapping("/{id}/status")
-    @PreAuthorize("hasAnyRole('LEADER', 'EMPLOYEE', 'ADMIN')")
+    @PreAuthorize("hasAuthority('TASK_UPDATE')")
     public ResponseEntity<TaskResponse> updateTaskStatus(
             @PathVariable Long id,
             @Valid @RequestBody UpdateTaskStatusRequest request,
@@ -95,7 +95,7 @@ public class TaskController {
     }
 
     @DeleteMapping("/{id}")
-    @PreAuthorize("hasAnyRole('LEADER', 'ADMIN')")
+    @PreAuthorize("hasAuthority('TASK_DELETE')")
     public ResponseEntity<Void> deleteTask(
             @PathVariable Long id,
             @AuthenticationPrincipal UserPrincipal currentUser) {
@@ -105,7 +105,7 @@ public class TaskController {
 
     // Comment endpoints on Task
     @PostMapping("/{taskId}/comments")
-    @PreAuthorize("hasAnyRole('LEADER', 'EMPLOYEE', 'ADMIN')")
+    @PreAuthorize("hasAuthority('TASK_READ')")
     public ResponseEntity<CommentResponse> addComment(
             @PathVariable Long taskId,
             @Valid @RequestBody CreateCommentRequest request,
@@ -115,7 +115,7 @@ public class TaskController {
     }
 
     @GetMapping("/{taskId}/comments")
-    @PreAuthorize("hasAnyRole('LEADER', 'EMPLOYEE', 'ADMIN')")
+    @PreAuthorize("hasAuthority('TASK_READ')")
     public ResponseEntity<List<CommentResponse>> getTaskComments(
             @PathVariable Long taskId,
             @AuthenticationPrincipal UserPrincipal currentUser) {
