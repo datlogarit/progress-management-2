@@ -315,6 +315,7 @@ export function LeaderTaskManagementPage() {
                 <thead>
                   <tr>
                     <th>Tên công việc</th>
+                    <th>Dự án</th>
                     <th>Trạng thái</th>
                     <th>Mức ưu tiên</th>
                     <th>Người thực hiện</th>
@@ -328,6 +329,9 @@ export function LeaderTaskManagementPage() {
                       <td className="task-title-cell" onClick={() => setDetailTask(t)}>
                         <div className="title-text">{t.title}</div>
                         {t.description && <div className="desc-preview">{t.description}</div>}
+                      </td>
+                      <td>
+                        <span className="task-project-tag">{t.projectName || '-'}</span>
                       </td>
                       <td>
                         <span className={`status-pill ${t.status.toLowerCase()}`}>

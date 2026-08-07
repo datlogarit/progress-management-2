@@ -70,7 +70,8 @@ public class UserServiceImpl implements UserService {
         log.info("Creating new user with username: {} and email: {}", request.getUsername(), request.getEmail());
 
         if (request.getRole() == RoleEnum.ADMIN) {
-            throw new CustomException("Cannot create another Admin user", HttpStatus.FORBIDDEN, "FORBIDDEN_ADMIN_ACTION");
+            throw new CustomException("Cannot create another Admin user", HttpStatus.FORBIDDEN,
+                    "FORBIDDEN_ADMIN_ACTION");
         }
 
         if (userRepository.existsByUsername(request.getUsername().trim())) {
@@ -84,7 +85,8 @@ public class UserServiceImpl implements UserService {
         Department department = null;
         if (request.getDepartmentId() != null) {
             department = departmentRepository.findById(request.getDepartmentId())
-                    .orElseThrow(() -> new ResourceNotFoundException("Department not found with id: " + request.getDepartmentId()));
+                    .orElseThrow(() -> new ResourceNotFoundException(
+                            "Department not found with id: " + request.getDepartmentId()));
         }
 
         Role targetRole = roleRepository.findByName(request.getRole().name())
@@ -124,19 +126,25 @@ public class UserServiceImpl implements UserService {
             if (!assignedTasks.isEmpty()) {
                 if (request.getReassignToUserId() != null) {
                     User newAssignee = userRepository.findById(request.getReassignToUserId())
-                            .orElseThrow(() -> new ResourceNotFoundException("Replacement user not found with id: " + request.getReassignToUserId()));
+                            .orElseThrow(() -> new ResourceNotFoundException(
+                                    "Replacement user not found with id: " + request.getReassignToUserId()));
 
                     if (newAssignee.getId().equals(user.getId())) {
-                        throw new CustomException("Cannot reassign tasks to the same user being deactivated", HttpStatus.BAD_REQUEST, "INVALID_REASSIGNMENT");
+                        throw new CustomException("Cannot reassign tasks to the same user being deactivated",
+                                HttpStatus.BAD_REQUEST, "INVALID_REASSIGNMENT");
                     }
                     if (!Boolean.TRUE.equals(newAssignee.getIsActive())) {
-                        throw new CustomException("Replacement user must be active", HttpStatus.BAD_REQUEST, "INVALID_REASSIGNMENT");
+                        throw new CustomException("Replacement user must be active", HttpStatus.BAD_REQUEST,
+                                "INVALID_REASSIGNMENT");
                     }
                     if (!"EMPLOYEE".equals(newAssignee.getRole().getName())) {
-                        throw new CustomException("Replacement user must be an EMPLOYEE", HttpStatus.BAD_REQUEST, "INVALID_REASSIGNMENT");
+                        throw new CustomException("Replacement user must be an EMPLOYEE", HttpStatus.BAD_REQUEST,
+                                "INVALID_REASSIGNMENT");
                     }
-                    if (user.getDepartment() != null && (newAssignee.getDepartment() == null || !newAssignee.getDepartment().getId().equals(user.getDepartment().getId()))) {
-                        throw new CustomException("Replacement assignee must belong to the same department", HttpStatus.BAD_REQUEST, "INVALID_REASSIGNMENT");
+                    if (user.getDepartment() != null && (newAssignee.getDepartment() == null
+                            || !newAssignee.getDepartment().getId().equals(user.getDepartment().getId()))) {
+                        throw new CustomException("Replacement assignee must belong to the same department",
+                                HttpStatus.BAD_REQUEST, "INVALID_REASSIGNMENT");
                     }
 
                     for (Task task : assignedTasks) {
@@ -145,16 +153,20 @@ public class UserServiceImpl implements UserService {
                     }
                 } else {
                     Long deptId = user.getDepartment() != null ? user.getDepartment().getId() : null;
-                    List<User> otherActiveUsers = (deptId != null) 
+                    List<User> otherActiveUsers = (deptId != null)
                             ? userRepository.findByDepartmentId(deptId).stream()
-                                    .filter(u -> Boolean.TRUE.equals(u.getIsActive()) && !u.getId().equals(user.getId()) && "EMPLOYEE".equals(u.getRole().getName()))
+                                    .filter(u -> Boolean.TRUE.equals(u.getIsActive()) && !u.getId().equals(user.getId())
+                                            && "EMPLOYEE".equals(u.getRole().getName()))
                                     .collect(Collectors.toList())
                             : userRepository.findAll().stream()
-                                    .filter(u -> Boolean.TRUE.equals(u.getIsActive()) && !u.getId().equals(user.getId()) && "EMPLOYEE".equals(u.getRole().getName()))
+                                    .filter(u -> Boolean.TRUE.equals(u.getIsActive()) && !u.getId().equals(user.getId())
+                                            && "EMPLOYEE".equals(u.getRole().getName()))
                                     .collect(Collectors.toList());
 
                     if (!otherActiveUsers.isEmpty()) {
-                        throw new CustomException("Tài khoản này đang có công việc được giao. Vui lòng chọn nhân viên trong cùng phòng ban để bàn giao công việc trước khi khóa tài khoản.", HttpStatus.BAD_REQUEST, "REASSIGNMENT_REQUIRED");
+                        throw new CustomException(
+                                "Tài khoản này đang có công việc được giao. Vui lòng chọn nhân viên trong cùng phòng ban để bàn giao công việc trước khi khóa tài khoản.",
+                                HttpStatus.BAD_REQUEST, "REASSIGNMENT_REQUIRED");
                     } else {
                         for (Task task : assignedTasks) {
                             task.setAssignee(null);
@@ -203,16 +215,21 @@ public class UserServiceImpl implements UserService {
             if (!assignedTasks.isEmpty()) {
                 if (request.getReassignToUserId() != null) {
                     User newAssignee = userRepository.findById(request.getReassignToUserId())
-                            .orElseThrow(() -> new ResourceNotFoundException("Replacement user not found with id: " + request.getReassignToUserId()));
-                    
+                            .orElseThrow(() -> new ResourceNotFoundException(
+                                    "Replacement user not found with id: " + request.getReassignToUserId()));
+
                     if (newAssignee.getId().equals(user.getId())) {
-                        throw new CustomException("Cannot reassign tasks to the same user being promoted", HttpStatus.BAD_REQUEST, "INVALID_REASSIGNMENT");
+                        throw new CustomException("Cannot reassign tasks to the same user being promoted",
+                                HttpStatus.BAD_REQUEST, "INVALID_REASSIGNMENT");
                     }
                     if (!"EMPLOYEE".equals(newAssignee.getRole().getName())) {
-                        throw new CustomException("Replacement assignee must be an EMPLOYEE", HttpStatus.BAD_REQUEST, "INVALID_REASSIGNMENT");
+                        throw new CustomException("Replacement assignee must be an EMPLOYEE", HttpStatus.BAD_REQUEST,
+                                "INVALID_REASSIGNMENT");
                     }
-                    if (user.getDepartment() != null && (newAssignee.getDepartment() == null || !newAssignee.getDepartment().getId().equals(user.getDepartment().getId()))) {
-                        throw new CustomException("Replacement assignee must belong to the same department", HttpStatus.BAD_REQUEST, "INVALID_REASSIGNMENT");
+                    if (user.getDepartment() != null && (newAssignee.getDepartment() == null
+                            || !newAssignee.getDepartment().getId().equals(user.getDepartment().getId()))) {
+                        throw new CustomException("Replacement assignee must belong to the same department",
+                                HttpStatus.BAD_REQUEST, "INVALID_REASSIGNMENT");
                     }
 
                     for (Task task : assignedTasks) {
@@ -221,14 +238,17 @@ public class UserServiceImpl implements UserService {
                     }
                 } else {
                     Long deptId = user.getDepartment() != null ? user.getDepartment().getId() : null;
-                    List<User> otherEmployees = (deptId != null) 
+                    List<User> otherEmployees = (deptId != null)
                             ? userRepository.findByDepartmentId(deptId).stream()
-                                    .filter(u -> "EMPLOYEE".equals(u.getRole().getName()) && !u.getId().equals(user.getId()))
+                                    .filter(u -> "EMPLOYEE".equals(u.getRole().getName())
+                                            && !u.getId().equals(user.getId()))
                                     .collect(Collectors.toList())
                             : List.of();
 
                     if (!otherEmployees.isEmpty()) {
-                        throw new CustomException("Tài khoản này đang có công việc được giao. Vui lòng chọn nhân viên trong phòng để nhận bàn giao lại công việc trước khi nâng cấp thành Trưởng phòng.", HttpStatus.BAD_REQUEST, "REASSIGNMENT_REQUIRED");
+                        throw new CustomException(
+                                "Tài khoản này đang có công việc được giao. Vui lòng chọn nhân viên trong phòng để nhận bàn giao lại công việc trước khi nâng cấp thành Trưởng phòng.",
+                                HttpStatus.BAD_REQUEST, "REASSIGNMENT_REQUIRED");
                     } else {
                         for (Task task : assignedTasks) {
                             task.setAssignee(null);
@@ -259,7 +279,8 @@ public class UserServiceImpl implements UserService {
         Department department = null;
         if (request.getDepartmentId() != null) {
             department = departmentRepository.findById(request.getDepartmentId())
-                    .orElseThrow(() -> new ResourceNotFoundException("Department not found with id: " + request.getDepartmentId()));
+                    .orElseThrow(() -> new ResourceNotFoundException(
+                            "Department not found with id: " + request.getDepartmentId()));
         }
 
         user.setDepartment(department);
@@ -281,19 +302,25 @@ public class UserServiceImpl implements UserService {
         if (!assignedTasks.isEmpty()) {
             if (reassignToUserId != null) {
                 User newAssignee = userRepository.findById(reassignToUserId)
-                        .orElseThrow(() -> new ResourceNotFoundException("Replacement user not found with id: " + reassignToUserId));
+                        .orElseThrow(() -> new ResourceNotFoundException(
+                                "Replacement user not found with id: " + reassignToUserId));
 
                 if (newAssignee.getId().equals(user.getId())) {
-                    throw new CustomException("Cannot reassign tasks to the user being deleted", HttpStatus.BAD_REQUEST, "INVALID_REASSIGNMENT");
+                    throw new CustomException("Cannot reassign tasks to the user being deleted", HttpStatus.BAD_REQUEST,
+                            "INVALID_REASSIGNMENT");
                 }
                 if (!Boolean.TRUE.equals(newAssignee.getIsActive())) {
-                    throw new CustomException("Replacement user must be active", HttpStatus.BAD_REQUEST, "INVALID_REASSIGNMENT");
+                    throw new CustomException("Replacement user must be active", HttpStatus.BAD_REQUEST,
+                            "INVALID_REASSIGNMENT");
                 }
                 if (!"EMPLOYEE".equals(newAssignee.getRole().getName())) {
-                    throw new CustomException("Replacement user must be an EMPLOYEE", HttpStatus.BAD_REQUEST, "INVALID_REASSIGNMENT");
+                    throw new CustomException("Replacement user must be an EMPLOYEE", HttpStatus.BAD_REQUEST,
+                            "INVALID_REASSIGNMENT");
                 }
-                if (user.getDepartment() != null && (newAssignee.getDepartment() == null || !newAssignee.getDepartment().getId().equals(user.getDepartment().getId()))) {
-                    throw new CustomException("Replacement assignee must belong to the same department", HttpStatus.BAD_REQUEST, "INVALID_REASSIGNMENT");
+                if (user.getDepartment() != null && (newAssignee.getDepartment() == null
+                        || !newAssignee.getDepartment().getId().equals(user.getDepartment().getId()))) {
+                    throw new CustomException("Replacement assignee must belong to the same department",
+                            HttpStatus.BAD_REQUEST, "INVALID_REASSIGNMENT");
                 }
 
                 for (Task task : assignedTasks) {
@@ -304,14 +331,18 @@ public class UserServiceImpl implements UserService {
                 Long deptId = user.getDepartment() != null ? user.getDepartment().getId() : null;
                 List<User> otherActiveUsers = (deptId != null)
                         ? userRepository.findByDepartmentId(deptId).stream()
-                                .filter(u -> Boolean.TRUE.equals(u.getIsActive()) && !u.getId().equals(user.getId()) && "EMPLOYEE".equals(u.getRole().getName()))
+                                .filter(u -> Boolean.TRUE.equals(u.getIsActive()) && !u.getId().equals(user.getId())
+                                        && "EMPLOYEE".equals(u.getRole().getName()))
                                 .collect(Collectors.toList())
                         : userRepository.findAll().stream()
-                                .filter(u -> Boolean.TRUE.equals(u.getIsActive()) && !u.getId().equals(user.getId()) && "EMPLOYEE".equals(u.getRole().getName()))
+                                .filter(u -> Boolean.TRUE.equals(u.getIsActive()) && !u.getId().equals(user.getId())
+                                        && "EMPLOYEE".equals(u.getRole().getName()))
                                 .collect(Collectors.toList());
 
                 if (!otherActiveUsers.isEmpty()) {
-                    throw new CustomException("Tài khoản này đang có công việc được giao. Vui lòng chọn nhân viên trong cùng phòng ban để bàn giao công việc trước khi xóa tài khoản.", HttpStatus.BAD_REQUEST, "REASSIGNMENT_REQUIRED");
+                    throw new CustomException(
+                            "Tài khoản này đang có công việc được giao. Vui lòng chọn nhân viên trong cùng phòng ban để bàn giao công việc trước khi xóa tài khoản.",
+                            HttpStatus.BAD_REQUEST, "REASSIGNMENT_REQUIRED");
                 } else {
                     for (Task task : assignedTasks) {
                         task.setAssignee(null);
@@ -353,7 +384,8 @@ public class UserServiceImpl implements UserService {
 
     private void validateNotAdminTarget(User targetUser) {
         if ("ADMIN".equals(targetUser.getRole().getName())) {
-            throw new CustomException("Cannot modify or manage Admin accounts", HttpStatus.FORBIDDEN, "FORBIDDEN_ADMIN_ACTION");
+            throw new CustomException("Cannot modify or manage Admin accounts", HttpStatus.FORBIDDEN,
+                    "FORBIDDEN_ADMIN_ACTION");
         }
     }
 

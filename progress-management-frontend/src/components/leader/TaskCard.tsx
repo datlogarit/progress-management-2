@@ -8,7 +8,8 @@ import {
   CheckCircle2, 
   AlertCircle, 
   XCircle,
-  Edit2
+  Edit2,
+  FolderKanban
 } from 'lucide-react';
 import { useState, useRef, useEffect } from 'react';
 import './TaskCard.css';
@@ -162,6 +163,13 @@ export function TaskCard({ task, onViewDetail, onEdit, onCancel, onStatusChange 
           )}
         </div>
       </div>
+
+      {task.projectName && (
+        <div className="task-project-tag">
+          <FolderKanban size={12} className="icon" />
+          <span>{task.projectName}</span>
+        </div>
+      )}
 
       <h3 className="task-card-title" onClick={() => onViewDetail(task)}>
         {task.title}

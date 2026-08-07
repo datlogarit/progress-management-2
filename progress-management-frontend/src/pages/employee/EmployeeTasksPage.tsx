@@ -223,6 +223,7 @@ export function EmployeeTasksPage() {
                 <thead>
                   <tr>
                     <th>Nhiệm vụ</th>
+                    <th>Dự án</th>
                     <th>Trạng thái</th>
                     <th>Người giao</th>
                     <th>Hạn hoàn thành</th>
@@ -232,7 +233,7 @@ export function EmployeeTasksPage() {
                 <tbody>
                   {filteredTasks.length === 0 ? (
                     <tr>
-                      <td colSpan={5} style={{ textAlign: 'center', padding: '30px', color: 'var(--color-text-secondary)' }}>
+                      <td colSpan={6} style={{ textAlign: 'center', padding: '30px', color: 'var(--color-text-secondary)' }}>
                         Không tìm thấy nhiệm vụ nào.
                       </td>
                     </tr>
@@ -246,6 +247,9 @@ export function EmployeeTasksPage() {
                               {task.description.length > 60 ? `${task.description.substring(0, 60)}...` : task.description}
                             </div>
                           )}
+                        </td>
+                        <td>
+                          <span className="task-project-tag">{task.projectName || '-'}</span>
                         </td>
                         <td>{getStatusPill(task.status)}</td>
                         <td>

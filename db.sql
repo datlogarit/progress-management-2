@@ -11,17 +11,32 @@ CREATE TYPE task_status_enum AS ENUM ('TODO', 'IN_PROGRESS', 'DONE');
 CREATE TYPE notification_type_enum AS ENUM ('TASK_ASSIGNED', 'STATUS_CHANGED', 'NEW_COMMENT');
 
 -- ============================================================
--- 2. BẢNG: departments
+-- 2. BẢNG: teams (Đội nhóm là thực thể ảo rộng hơn phòng ban)
+-- ============================================================
+CREATE TABLE teams (
+    id            SERIAL PRIMARY KEY,
+    name          VARCHAR(100) NOT NULL,
+    description   TEXT,
+    created_at    TIMESTAMP NOT NULL DEFAULT NOW(),
+    updated_at    TIMESTAMP NOT NULL DEFAULT NOW()
+);
+
+COMMENT ON TABLE teams IS 'Đội nhóm (thực thể ảo rộng hơn phòng ban)';
+
+-- ============================================================
+-- 2.1. BẢNG: departments
 -- ============================================================
 CREATE TABLE departments (
     id          SERIAL PRIMARY KEY,
     name        VARCHAR(100) NOT NULL,
     description TEXT,
+    team_id     INT REFERENCES teams(id) ON DELETE SET NULL,
     created_at  TIMESTAMP NOT NULL DEFAULT NOW(),
     updated_at  TIMESTAMP NOT NULL DEFAULT NOW()
 );
 
-COMMENT ON TABLE departments IS 'Phòng ban trong doanh nghiệp';
+COMMENT ON TABLE departments IS 'Phòng ban trong doanh nghiệp (thuộc Đội nhóm)';
+CREATE INDEX idx_departments_team_id ON departments(team_id);
 
 -- ============================================================
 -- 3. BẢNG: projects
@@ -31,14 +46,16 @@ CREATE TABLE projects (
     name          VARCHAR(100) NOT NULL,
     description   TEXT,
     department_id INT NOT NULL REFERENCES departments(id) ON DELETE CASCADE,
+    team_id       INT REFERENCES teams(id) ON DELETE SET NULL,
     status        VARCHAR(50) NOT NULL DEFAULT 'ACTIVE',
     created_at    TIMESTAMP NOT NULL DEFAULT NOW(),
     updated_at    TIMESTAMP NOT NULL DEFAULT NOW()
 );
 
-COMMENT ON TABLE projects IS 'Dự án thuộc phòng ban';
+COMMENT ON TABLE projects IS 'Dự án thuộc phòng ban/đội nhóm';
 
 CREATE INDEX idx_projects_department_id ON projects(department_id);
+CREATE INDEX idx_projects_team_id ON projects(team_id);
 
 -- ============================================================
 -- 4. BẢNG: users
@@ -51,12 +68,14 @@ CREATE TABLE users (
     full_name       VARCHAR(100) NOT NULL,
     role            role_enum    NOT NULL,
     department_id   INT REFERENCES departments(id) ON DELETE SET NULL,
+    team_id         INT REFERENCES teams(id) ON DELETE SET NULL,
     is_active       BOOLEAN      NOT NULL DEFAULT TRUE,
     created_at      TIMESTAMP    NOT NULL DEFAULT NOW(),
     updated_at      TIMESTAMP    NOT NULL DEFAULT NOW()
 );
 
 CREATE INDEX idx_users_department_id ON users(department_id);
+CREATE INDEX idx_users_team_id ON users(team_id);
 CREATE INDEX idx_users_role ON users(role);
 
 -- ============================================================
@@ -79,6 +98,7 @@ CREATE TABLE tasks (
     title          VARCHAR(255) NOT NULL,
     description    TEXT,
     project_id     INT NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
+    team_id        INT REFERENCES teams(id) ON DELETE SET NULL,
     created_by     INT NOT NULL REFERENCES users(id) ON DELETE RESTRICT,   -- Leader tạo task
     assigned_to    INT REFERENCES users(id) ON DELETE SET NULL,            -- Employee được gán
     status         VARCHAR(50) NOT NULL DEFAULT 'PENDING',
@@ -91,6 +111,7 @@ CREATE TABLE tasks (
 COMMENT ON TABLE tasks IS 'Công việc thuộc về một dự án cụ thể';
 
 CREATE INDEX idx_tasks_project_id ON tasks(project_id);
+CREATE INDEX idx_tasks_team_id ON tasks(team_id);
 CREATE INDEX idx_tasks_created_by ON tasks(created_by);
 CREATE INDEX idx_tasks_assigned_to ON tasks(assigned_to);
 CREATE INDEX idx_tasks_status ON tasks(status);

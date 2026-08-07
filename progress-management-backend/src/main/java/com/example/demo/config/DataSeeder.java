@@ -5,8 +5,10 @@ import com.example.demo.constant.RoleEnum;
 import com.example.demo.entity.Permission;
 import com.example.demo.entity.Role;
 import com.example.demo.entity.User;
+import com.example.demo.entity.Team;
 import com.example.demo.repository.PermissionRepository;
 import com.example.demo.repository.RoleRepository;
+import com.example.demo.repository.TeamRepository;
 import com.example.demo.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -27,6 +29,7 @@ public class DataSeeder implements CommandLineRunner {
 
     private final RoleRepository roleRepository;
     private final PermissionRepository permissionRepository;
+    private final TeamRepository teamRepository;
     private final UserRepository userRepository;
     private final PasswordEncoder passwordEncoder;
 
@@ -35,6 +38,7 @@ public class DataSeeder implements CommandLineRunner {
         seedPermissions();
         seedRoles();
         seedAdminUser();
+        seedTeams();
     }
 
     private void seedPermissions() {
@@ -61,11 +65,13 @@ public class DataSeeder implements CommandLineRunner {
                     rolePermissions = new HashSet<>(permissionRepository.findAll());
                 } else if (roleEnum == RoleEnum.LEADER) {
                     rolePermissions = permissionRepository.findAll().stream()
-                            .filter(p -> p.getName().startsWith("TASK_") || p.getName().equals("USER_READ") || p.getName().equals("DEPARTMENT_READ") || p.getName().equals("PROJECT_READ"))
+                            .filter(p -> p.getName().startsWith("TASK_") || p.getName().equals("USER_READ")
+                                    || p.getName().equals("DEPARTMENT_READ") || p.getName().equals("PROJECT_READ"))
                             .collect(Collectors.toSet());
                 } else if (roleEnum == RoleEnum.EMPLOYEE) {
                     rolePermissions = permissionRepository.findAll().stream()
-                            .filter(p -> p.getName().equals("TASK_READ") || p.getName().equals("TASK_UPDATE") || p.getName().equals("PROJECT_READ"))
+                            .filter(p -> p.getName().equals("TASK_READ") || p.getName().equals("TASK_UPDATE")
+                                    || p.getName().equals("PROJECT_READ"))
                             .collect(Collectors.toSet());
                 }
 
@@ -94,6 +100,25 @@ public class DataSeeder implements CommandLineRunner {
                     .build();
             userRepository.save(admin);
             log.info("Admin user created.");
+        }
+    }
+
+    private void seedTeams() {
+        log.info("Seeding teams...");
+        if (teamRepository.count() == 0) {
+            Team itTeam = Team.builder()
+                    .name("Đội IT")
+                    .description("Đội IT tổng hợp bao gồm dev, helpdesk, hạ tầng")
+                    .build();
+            teamRepository.save(itTeam);
+
+            Team hrTeam = Team.builder()
+                    .name("Đội Hành chính Nhân sự")
+                    .description("Đội Hành chính Nhân sự")
+                    .build();
+            teamRepository.save(hrTeam);
+
+            log.info("Sample teams created.");
         }
     }
 }

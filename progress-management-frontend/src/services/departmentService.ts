@@ -4,6 +4,8 @@ export interface DepartmentDTO {
   id: number;
   name: string;
   description: string | null;
+  teamId?: number | null;
+  teamName?: string | null;
   userCount: number;
   createdAt: string;
   updatedAt: string;
@@ -12,11 +14,13 @@ export interface DepartmentDTO {
 export interface CreateDepartmentParams {
   name: string;
   description?: string;
+  teamId?: number | null;
 }
 
 export interface UpdateDepartmentParams {
   name: string;
   description?: string;
+  teamId?: number | null;
 }
 
 function getAuthHeaders() {

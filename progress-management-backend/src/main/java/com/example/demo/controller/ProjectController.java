@@ -34,8 +34,10 @@ public class ProjectController {
 
     @GetMapping("/{id}")
     @PreAuthorize("hasAuthority('PROJECT_READ')")
-    public ResponseEntity<ProjectResponse> getProjectById(@PathVariable Long id) {
-        ProjectResponse project = projectService.getProjectById(id);
+    public ResponseEntity<ProjectResponse> getProjectById(
+            @PathVariable Long id,
+            @AuthenticationPrincipal UserPrincipal currentUser) {
+        ProjectResponse project = projectService.getProjectById(id, currentUser);
         return ResponseEntity.ok(project);
     }
 

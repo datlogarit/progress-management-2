@@ -8,11 +8,13 @@ import {
   deleteDepartmentApi 
 } from '../../services/departmentService';
 import type { DepartmentDTO } from '../../services/departmentService';
-import { Building2, Plus, Edit3, Trash2, Users, Calendar } from 'lucide-react';
+import { getAllTeamsApi, type TeamDTO } from '../../services/teamService.ts';
+import { Building2, Plus, Edit3, Trash2, Users, Calendar, UserCheck } from 'lucide-react';
 import './DepartmentManagementPage.css';
 
 export function DepartmentManagementPage() {
   const [departments, setDepartments] = useState<DepartmentDTO[]>([]);
+  const [teams, setTeams] = useState<TeamDTO[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
   const [successMsg, setSuccessMsg] = useState<string | null>(null);
@@ -23,27 +25,36 @@ export function DepartmentManagementPage() {
   const [selectedDept, setSelectedDept] = useState<DepartmentDTO | null>(null);
 
   // Form State
-  const [deptForm, setDeptForm] = useState({
+  const [deptForm, setDeptForm] = useState<{
+    name: string;
+    description: string;
+    teamId: number | '';
+  }>({
     name: '',
     description: '',
+    teamId: '',
   });
 
-  const fetchDepartments = async () => {
+  const fetchData = async () => {
     try {
       setLoading(true);
       setError(null);
-      const data = await getAllDepartmentsApi();
-      setDepartments(data);
+      const [deptData, teamData] = await Promise.all([
+        getAllDepartmentsApi(),
+        getAllTeamsApi(),
+      ]);
+      setDepartments(deptData);
+      setTeams(teamData);
     } catch (err: unknown) {
       if (err instanceof Error) setError(err.message);
-      else setError('Không thể tải danh sách phòng ban');
+      else setError('Không thể tải dữ liệu phòng ban');
     } finally {
       setLoading(false);
     }
   };
 
   useEffect(() => {
-    fetchDepartments();
+    fetchData();
   }, []);
 
   const showSuccess = (msg: string) => {
@@ -55,11 +66,15 @@ export function DepartmentManagementPage() {
     e.preventDefault();
     try {
       setError(null);
-      await createDepartmentApi(deptForm);
+      await createDepartmentApi({
+        name: deptForm.name,
+        description: deptForm.description,
+        teamId: deptForm.teamId === '' ? null : Number(deptForm.teamId),
+      });
       setIsCreateModalOpen(false);
-      setDeptForm({ name: '', description: '' });
+      setDeptForm({ name: '', description: '', teamId: '' });
       showSuccess('Tạo phòng ban mới thành công!');
-      fetchDepartments();
+      fetchData();
     } catch (err: unknown) {
       if (err instanceof Error) setError(err.message);
     }
@@ -70,6 +85,7 @@ export function DepartmentManagementPage() {
     setDeptForm({
       name: d.name,
       description: d.description || '',
+      teamId: d.teamId ?? '',
     });
     setIsEditModalOpen(true);
   };
@@ -79,10 +95,14 @@ export function DepartmentManagementPage() {
     if (!selectedDept) return;
     try {
       setError(null);
-      await updateDepartmentApi(selectedDept.id, deptForm);
+      await updateDepartmentApi(selectedDept.id, {
+        name: deptForm.name,
+        description: deptForm.description,
+        teamId: deptForm.teamId === '' ? null : Number(deptForm.teamId),
+      });
       setIsEditModalOpen(false);
       showSuccess(`Cập nhật phòng ban ${selectedDept.name} thành công!`);
-      fetchDepartments();
+      fetchData();
     } catch (err: unknown) {
       if (err instanceof Error) setError(err.message);
     }
@@ -99,7 +119,7 @@ export function DepartmentManagementPage() {
       setError(null);
       await deleteDepartmentApi(d.id);
       showSuccess(`Đã xóa phòng ban ${d.name}!`);
-      fetchDepartments();
+      fetchData();
     } catch (err: unknown) {
       if (err instanceof Error) setError(err.message);
     }
@@ -120,7 +140,7 @@ export function DepartmentManagementPage() {
           </div>
 
           <button className="btn-primary" onClick={() => {
-            setDeptForm({ name: '', description: '' });
+            setDeptForm({ name: '', description: '', teamId: '' });
             setIsCreateModalOpen(true);
           }}>
             <Plus size={18} />
@@ -158,7 +178,13 @@ export function DepartmentManagementPage() {
                 </div>
 
                 <div className="dept-card-body">
-                  <h3 className="dept-title">{d.name}</h3>
+                  <div className="dept-header-title">
+                    <h3 className="dept-title">{d.name}</h3>
+                    <span className={`dept-team-badge ${d.teamName ? 'active' : 'none'}`}>
+                      <UserCheck size={12} />
+                      {d.teamName ? `Thuộc: ${d.teamName}` : 'Chưa phân Đội nhóm'}
+                    </span>
+                  </div>
                   <p className="dept-desc">
                     {d.description || 'Chưa có mô tả chi tiết cho phòng ban này.'}
                   </p>
@@ -199,10 +225,25 @@ export function DepartmentManagementPage() {
             <input
               type="text"
               required
-              placeholder="VD: Phòng Công nghệ Thông tin"
+              placeholder="VD: Dev 1, Dev 2, Helpdesk..."
               value={deptForm.name}
               onChange={(e) => setDeptForm({ ...deptForm, name: e.target.value })}
             />
+          </div>
+
+          <div className="form-group">
+            <label>Thuộc Đội nhóm (Team)</label>
+            <select
+              value={deptForm.teamId}
+              onChange={(e) => setDeptForm({ ...deptForm, teamId: e.target.value ? Number(e.target.value) : '' })}
+            >
+              <option value="">-- Chưa gán Đội nhóm --</option>
+              {teams.map((t) => (
+                <option key={t.id} value={t.id}>
+                  {t.name}
+                </option>
+              ))}
+            </select>
           </div>
 
           <div className="form-group">
@@ -245,6 +286,21 @@ export function DepartmentManagementPage() {
               value={deptForm.name}
               onChange={(e) => setDeptForm({ ...deptForm, name: e.target.value })}
             />
+          </div>
+
+          <div className="form-group">
+            <label>Thuộc Đội nhóm (Team)</label>
+            <select
+              value={deptForm.teamId}
+              onChange={(e) => setDeptForm({ ...deptForm, teamId: e.target.value ? Number(e.target.value) : '' })}
+            >
+              <option value="">-- Chưa gán Đội nhóm --</option>
+              {teams.map((t) => (
+                <option key={t.id} value={t.id}>
+                  {t.name}
+                </option>
+              ))}
+            </select>
           </div>
 
           <div className="form-group">

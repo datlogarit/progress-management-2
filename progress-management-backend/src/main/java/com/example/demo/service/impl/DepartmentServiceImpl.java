@@ -4,10 +4,12 @@ import com.example.demo.dto.request.CreateDepartmentRequest;
 import com.example.demo.dto.request.UpdateDepartmentRequest;
 import com.example.demo.dto.response.DepartmentResponse;
 import com.example.demo.entity.Department;
+import com.example.demo.entity.Team;
 import com.example.demo.entity.User;
 import com.example.demo.exception.DuplicateResourceException;
 import com.example.demo.exception.ResourceNotFoundException;
 import com.example.demo.repository.DepartmentRepository;
+import com.example.demo.repository.TeamRepository;
 import com.example.demo.repository.UserRepository;
 import com.example.demo.service.DepartmentService;
 import lombok.RequiredArgsConstructor;
@@ -25,6 +27,7 @@ public class DepartmentServiceImpl implements DepartmentService {
 
     private final DepartmentRepository departmentRepository;
     private final UserRepository userRepository;
+    private final TeamRepository teamRepository;
 
     @Override
     @Transactional(readOnly = true)
@@ -53,9 +56,16 @@ public class DepartmentServiceImpl implements DepartmentService {
             throw new DuplicateResourceException("Department name already exists: " + request.getName());
         }
 
+        Team team = null;
+        if (request.getTeamId() != null) {
+            team = teamRepository.findById(request.getTeamId())
+                    .orElseThrow(() -> new ResourceNotFoundException("Team not found with id: " + request.getTeamId()));
+        }
+
         Department department = Department.builder()
                 .name(request.getName().trim())
                 .description(request.getDescription() != null ? request.getDescription().trim() : null)
+                .team(team)
                 .build();
 
         Department saved = departmentRepository.save(department);
@@ -76,6 +86,14 @@ public class DepartmentServiceImpl implements DepartmentService {
 
         department.setName(request.getName().trim());
         department.setDescription(request.getDescription() != null ? request.getDescription().trim() : null);
+
+        if (request.getTeamId() != null) {
+            Team team = teamRepository.findById(request.getTeamId())
+                    .orElseThrow(() -> new ResourceNotFoundException("Team not found with id: " + request.getTeamId()));
+            department.setTeam(team);
+        } else {
+            department.setTeam(null);
+        }
 
         Department updated = departmentRepository.save(department);
         return mapToResponse(updated);
@@ -108,6 +126,8 @@ public class DepartmentServiceImpl implements DepartmentService {
                 .id(department.getId())
                 .name(department.getName())
                 .description(department.getDescription())
+                .teamId(department.getTeam() != null ? department.getTeam().getId() : null)
+                .teamName(department.getTeam() != null ? department.getTeam().getName() : null)
                 .userCount(userCount)
                 .createdAt(department.getCreatedAt())
                 .updatedAt(department.getUpdatedAt())

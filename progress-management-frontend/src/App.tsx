@@ -5,6 +5,7 @@ import LoginPage from './pages/LoginPage';
 import { AdminDashboardPage } from './pages/admin/AdminDashboardPage';
 import { UserManagementPage } from './pages/admin/UserManagementPage';
 import { DepartmentManagementPage } from './pages/admin/DepartmentManagementPage';
+import { TeamManagementPage } from './pages/admin/TeamManagementPage';
 import { ProjectManagementPage } from './pages/admin/ProjectManagementPage';
 import { LeaderDashboardPage } from './pages/leader/LeaderDashboardPage';
 import { LeaderTaskManagementPage } from './pages/leader/LeaderTaskManagementPage';
@@ -100,6 +101,14 @@ function App() {
             element={
               <ProtectedRoute requiredPermissions={['DEPARTMENT_CREATE', 'DEPARTMENT_UPDATE']}>
                 <DepartmentManagementPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/admin/teams"
+            element={
+              <ProtectedRoute requiredPermissions={['DEPARTMENT_CREATE', 'DEPARTMENT_UPDATE']}>
+                <TeamManagementPage />
               </ProtectedRoute>
             }
           />

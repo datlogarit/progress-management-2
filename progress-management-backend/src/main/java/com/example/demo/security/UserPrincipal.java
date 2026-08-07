@@ -19,6 +19,7 @@ public class UserPrincipal implements UserDetails {
     private final String username;
     private final String email;
     private final String password;
+    private final boolean active;
     private final Collection<? extends GrantedAuthority> authorities;
 
     public static UserPrincipal create(User user) {
@@ -32,6 +33,7 @@ public class UserPrincipal implements UserDetails {
                 user.getUsername(),
                 user.getEmail(),
                 user.getPasswordHash(),
+                user.getIsActive() != null && user.getIsActive(),
                 authorities
         );
     }
@@ -63,6 +65,6 @@ public class UserPrincipal implements UserDetails {
 
     @Override
     public boolean isEnabled() {
-        return true;
+        return active;
     }
 }

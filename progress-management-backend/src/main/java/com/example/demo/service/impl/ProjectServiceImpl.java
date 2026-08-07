@@ -61,10 +61,24 @@ public class ProjectServiceImpl implements ProjectService {
 
     @Override
     @Transactional(readOnly = true)
-    public ProjectResponse getProjectById(Long id) {
+    public ProjectResponse getProjectById(Long id, UserPrincipal currentUser) {
         log.info("Fetching project by id={}", id);
         Project project = projectRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Project not found with id: " + id));
+
+        if (currentUser != null) {
+            User user = userRepository.findById(currentUser.getId())
+                    .orElseThrow(() -> new ResourceNotFoundException("User not found with id: " + currentUser.getId()));
+
+            if (!"ADMIN".equals(user.getRole().getName())) {
+                boolean isMember = project.getMembers().stream()
+                        .anyMatch(member -> member.getId().equals(user.getId()));
+                if (!isMember) {
+                    throw new CustomException("You do not have permission to view this project", HttpStatus.FORBIDDEN, "ACCESS_DENIED");
+                }
+            }
+        }
+
         return mapToResponse(project);
     }
 
