@@ -14,6 +14,10 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
+import com.example.demo.annotation.Authorize;
+import com.example.demo.constant.PermissionEnum;
+import com.example.demo.constant.RoleEnum;
+import com.example.demo.constant.ScopeType;
 
 import java.util.List;
 
@@ -27,7 +31,12 @@ public class TaskController {
     private final CommentService commentService;
 
     @PostMapping
-    @PreAuthorize("hasAuthority('TASK_CREATE')")
+    @Authorize(
+        permission = {PermissionEnum.TASK_CREATE},
+        roles = {RoleEnum.ADMIN, RoleEnum.LEADER, RoleEnum.EMPLOYEE},
+        scope = ScopeType.PROJECT,
+        scopeParam = "projectId"
+    )
     public ResponseEntity<TaskResponse> createTask(
             @Valid @RequestBody CreateTaskRequest request,
             @AuthenticationPrincipal UserPrincipal currentUser) {
@@ -36,7 +45,12 @@ public class TaskController {
     }
 
     @GetMapping
-    @PreAuthorize("hasAuthority('TASK_READ')")
+    @Authorize(
+        permission = {PermissionEnum.TASK_READ},
+        roles = {RoleEnum.ADMIN, RoleEnum.LEADER, RoleEnum.EMPLOYEE},
+        scope = ScopeType.PROJECT,
+        scopeParam = "projectId"
+    )
     public ResponseEntity<List<TaskResponse>> getTasks(
             @RequestParam(required = false) Long projectId,
             @RequestParam(required = false) Long assigneeId,
@@ -47,7 +61,10 @@ public class TaskController {
     }
 
     @GetMapping("/my-tasks")
-    @PreAuthorize("hasAuthority('TASK_READ')")
+    @Authorize(
+        permission = {PermissionEnum.TASK_READ},
+        roles = {RoleEnum.ADMIN, RoleEnum.LEADER, RoleEnum.EMPLOYEE}
+    )
     public ResponseEntity<List<TaskResponse>> getMyTasks(
             @RequestParam(required = false) TaskStatus status,
             @AuthenticationPrincipal UserPrincipal currentUser) {
@@ -56,7 +73,12 @@ public class TaskController {
     }
 
     @GetMapping("/{id}")
-    @PreAuthorize("hasAuthority('TASK_READ')")
+    @Authorize(
+        permission = {PermissionEnum.TASK_READ},
+        roles = {RoleEnum.ADMIN, RoleEnum.LEADER, RoleEnum.EMPLOYEE},
+        scope = ScopeType.TASK,
+        scopeParam = "id"
+    )
     public ResponseEntity<TaskResponse> getTaskById(
             @PathVariable Long id,
             @AuthenticationPrincipal UserPrincipal currentUser) {
@@ -65,7 +87,12 @@ public class TaskController {
     }
 
     @PutMapping("/{id}")
-    @PreAuthorize("hasAuthority('TASK_UPDATE')")
+    @Authorize(
+        permission = {PermissionEnum.TASK_UPDATE},
+        roles = {RoleEnum.ADMIN, RoleEnum.LEADER, RoleEnum.EMPLOYEE},
+        scope = ScopeType.TASK,
+        scopeParam = "id"
+    )
     public ResponseEntity<TaskResponse> updateTask(
             @PathVariable Long id,
             @Valid @RequestBody UpdateTaskRequest request,
@@ -75,7 +102,12 @@ public class TaskController {
     }
 
     @PatchMapping("/{id}/assign")
-    @PreAuthorize("hasAuthority('TASK_ASSIGN')")
+    @Authorize(
+        permission = {PermissionEnum.TASK_ASSIGN},
+        roles = {RoleEnum.ADMIN, RoleEnum.LEADER},
+        scope = ScopeType.TASK,
+        scopeParam = "id"
+    )
     public ResponseEntity<TaskResponse> assignTask(
             @PathVariable Long id,
             @Valid @RequestBody AssignTaskRequest request,
@@ -85,7 +117,12 @@ public class TaskController {
     }
 
     @PatchMapping("/{id}/status")
-    @PreAuthorize("hasAuthority('TASK_UPDATE')")
+    @Authorize(
+        permission = {PermissionEnum.TASK_UPDATE},
+        roles = {RoleEnum.ADMIN, RoleEnum.LEADER, RoleEnum.EMPLOYEE},
+        scope = ScopeType.TASK,
+        scopeParam = "id"
+    )
     public ResponseEntity<TaskResponse> updateTaskStatus(
             @PathVariable Long id,
             @Valid @RequestBody UpdateTaskStatusRequest request,
@@ -95,7 +132,12 @@ public class TaskController {
     }
 
     @DeleteMapping("/{id}")
-    @PreAuthorize("hasAuthority('TASK_DELETE')")
+    @Authorize(
+        permission = {PermissionEnum.TASK_DELETE},
+        roles = {RoleEnum.ADMIN, RoleEnum.LEADER},
+        scope = ScopeType.TASK,
+        scopeParam = "id"
+    )
     public ResponseEntity<Void> deleteTask(
             @PathVariable Long id,
             @AuthenticationPrincipal UserPrincipal currentUser) {
@@ -105,7 +147,12 @@ public class TaskController {
 
     // Comment endpoints on Task
     @PostMapping("/{taskId}/comments")
-    @PreAuthorize("hasAuthority('TASK_READ')")
+    @Authorize(
+        permission = {PermissionEnum.TASK_READ},
+        roles = {RoleEnum.ADMIN, RoleEnum.LEADER, RoleEnum.EMPLOYEE},
+        scope = ScopeType.TASK,
+        scopeParam = "taskId"
+    )
     public ResponseEntity<CommentResponse> addComment(
             @PathVariable Long taskId,
             @Valid @RequestBody CreateCommentRequest request,
@@ -115,7 +162,12 @@ public class TaskController {
     }
 
     @GetMapping("/{taskId}/comments")
-    @PreAuthorize("hasAuthority('TASK_READ')")
+    @Authorize(
+        permission = {PermissionEnum.TASK_READ},
+        roles = {RoleEnum.ADMIN, RoleEnum.LEADER, RoleEnum.EMPLOYEE},
+        scope = ScopeType.TASK,
+        scopeParam = "taskId"
+    )
     public ResponseEntity<List<CommentResponse>> getTaskComments(
             @PathVariable Long taskId,
             @AuthenticationPrincipal UserPrincipal currentUser) {
