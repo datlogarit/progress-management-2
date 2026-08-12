@@ -24,4 +24,6 @@ public class CreateProjectRequest {
     private Long departmentId;
 
     private List<Long> memberIds;
+
+    private List<Long> managerIds;
 }

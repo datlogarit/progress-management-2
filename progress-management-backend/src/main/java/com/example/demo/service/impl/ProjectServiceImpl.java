@@ -39,7 +39,7 @@ public class ProjectServiceImpl implements ProjectService {
     @Transactional(readOnly = true)
     public List<ProjectResponse> getAllProjects(Long departmentId, UserPrincipal currentUser) {
         log.info("Fetching projects, departmentId={}", departmentId);
-        
+
         User user = userRepository.findById(currentUser.getId())
                 .orElseThrow(() -> new ResourceNotFoundException("User not found with id: " + currentUser.getId()));
 
@@ -74,7 +74,8 @@ public class ProjectServiceImpl implements ProjectService {
                 boolean isMember = project.getMembers().stream()
                         .anyMatch(member -> member.getId().equals(user.getId()));
                 if (!isMember) {
-                    throw new CustomException("You do not have permission to view this project", HttpStatus.FORBIDDEN, "ACCESS_DENIED");
+                    throw new CustomException("You do not have permission to view this project", HttpStatus.FORBIDDEN,
+                            "ACCESS_DENIED");
                 }
             }
         }
@@ -88,14 +89,17 @@ public class ProjectServiceImpl implements ProjectService {
         log.info("Creating new project: {}", request.getName());
 
         Department department = departmentRepository.findById(request.getDepartmentId())
-                .orElseThrow(() -> new ResourceNotFoundException("Department not found with id: " + request.getDepartmentId()));
+                .orElseThrow(() -> new ResourceNotFoundException(
+                        "Department not found with id: " + request.getDepartmentId()));
 
         Set<User> members = new HashSet<>();
         if (request.getMemberIds() != null && !request.getMemberIds().isEmpty()) {
             List<User> users = userRepository.findAllById(request.getMemberIds());
             for (User user : users) {
                 if (user.getDepartment() == null || !user.getDepartment().getId().equals(department.getId())) {
-                    throw new CustomException("User " + user.getUsername() + " does not belong to the selected department", HttpStatus.BAD_REQUEST, "INVALID_MEMBER");
+                    throw new CustomException(
+                            "User " + user.getUsername() + " does not belong to the selected department",
+                            HttpStatus.BAD_REQUEST, "INVALID_MEMBER");
                 }
             }
             members.addAll(users);
@@ -130,8 +134,11 @@ public class ProjectServiceImpl implements ProjectService {
         if (request.getMemberIds() != null) {
             List<User> users = userRepository.findAllById(request.getMemberIds());
             for (User user : users) {
-                if (user.getDepartment() == null || !user.getDepartment().getId().equals(project.getDepartment().getId())) {
-                    throw new CustomException("User " + user.getUsername() + " does not belong to the project's department", HttpStatus.BAD_REQUEST, "INVALID_MEMBER");
+                if (user.getDepartment() == null
+                        || !user.getDepartment().getId().equals(project.getDepartment().getId())) {
+                    throw new CustomException(
+                            "User " + user.getUsername() + " does not belong to the project's department",
+                            HttpStatus.BAD_REQUEST, "INVALID_MEMBER");
                 }
             }
             project.setMembers(new HashSet<>(users));

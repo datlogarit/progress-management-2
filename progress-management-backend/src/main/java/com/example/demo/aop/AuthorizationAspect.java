@@ -23,9 +23,6 @@ import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Component;
 
 import java.lang.reflect.Method;
-import java.util.Arrays;
-import java.util.List;
-import java.util.stream.Collectors;
 
 @Aspect
 @Component
@@ -39,7 +36,8 @@ public class AuthorizationAspect {
     @Before("@annotation(authorize)")
     public void checkAuthorization(JoinPoint joinPoint, Authorize authorize) {
         Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
-        if (authentication == null || !authentication.isAuthenticated() || "anonymousUser".equals(authentication.getPrincipal())) {
+        if (authentication == null || !authentication.isAuthenticated()
+                || "anonymousUser".equals(authentication.getPrincipal())) {
             throw new AccessDeniedException("User is not authenticated");
         }
 
@@ -81,8 +79,10 @@ public class AuthorizationAspect {
             Long scopeId = extractScopeId(joinPoint, scopeParam);
 
             if (scopeId == null) {
-                // If it's a creation method, maybe the scope is in the body, but for path variables it should be present.
-                // Assuming it's present for this simple implementation or let it pass if null and handle in service.
+                // If it's a creation method, maybe the scope is in the body, but for path
+                // variables it should be present.
+                // Assuming it's present for this simple implementation or let it pass if null
+                // and handle in service.
                 return;
             }
 
@@ -105,11 +105,12 @@ public class AuthorizationAspect {
 
                 boolean isProjectMember = project.getMembers().stream()
                         .anyMatch(member -> member.getId().equals(user.getId()));
-                
+
                 boolean isDepartmentAdmin = false;
-                if (user.getRole().getName().equalsIgnoreCase(RoleEnum.ADMIN.name()) || user.getRole().getName().equalsIgnoreCase("DEPARTMENT_HEAD")) {
-                    if (user.getDepartment() != null && project.getDepartment() != null && 
-                        user.getDepartment().getId().equals(project.getDepartment().getId())) {
+                if (user.getRole().getName().equalsIgnoreCase(RoleEnum.ADMIN.name())
+                        || user.getRole().getName().equalsIgnoreCase("DEPARTMENT_HEAD")) {
+                    if (user.getDepartment() != null && project.getDepartment() != null &&
+                            user.getDepartment().getId().equals(project.getDepartment().getId())) {
                         isDepartmentAdmin = true;
                     }
                 }
@@ -144,7 +145,7 @@ public class AuthorizationAspect {
                 }
             }
         }
-        
+
         // 2. If not found directly, try to extract from DTO objects in arguments
         for (Object arg : args) {
             if (arg != null) {

@@ -6,12 +6,13 @@ import com.example.demo.constant.ScopeType;
 
 import java.lang.annotation.*;
 
-@Target({ElementType.METHOD})
+@Target({ ElementType.METHOD })
 @Retention(RetentionPolicy.RUNTIME)
 @Documented
 public @interface Authorize {
 
-    // Required permission for the action. Empty means no specific permission required (just login).
+    // Required permission for the action. Empty means no specific permission
+    // required (just login).
     PermissionEnum[] permission() default {};
 
     // Allowed roles
@@ -20,6 +21,7 @@ public @interface Authorize {
     // Scope for authorization
     ScopeType scope() default ScopeType.NONE;
 
-    // The name of the parameter (e.g., in @PathVariable or @RequestParam) to extract the scope ID
+    // The name of the parameter (e.g., in @PathVariable or @RequestParam) to
+    // extract the scope ID
     String scopeParam() default "";
 }

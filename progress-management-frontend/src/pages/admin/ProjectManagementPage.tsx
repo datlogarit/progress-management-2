@@ -36,6 +36,7 @@ export function ProjectManagementPage() {
     departmentId: 0,
     status: 'ACTIVE',
     memberIds: [] as number[],
+    managerIds: [] as number[],
   });
 
   const fetchData = async () => {
@@ -78,7 +79,8 @@ export function ProjectManagementPage() {
         name: form.name,
         description: form.description,
         departmentId: form.departmentId,
-        memberIds: form.memberIds
+        memberIds: form.memberIds,
+        managerIds: form.managerIds,
       });
       setIsCreateModalOpen(false);
       showSuccess('Tạo dự án mới thành công!');
@@ -95,7 +97,8 @@ export function ProjectManagementPage() {
       description: p.description || '',
       departmentId: p.departmentId,
       status: p.status,
-      memberIds: p.members.map(m => m.id),
+      memberIds: p.members ? p.members.map(m => m.id) : [],
+      managerIds: p.managers ? p.managers.map(m => m.id) : [],
     });
     setIsEditModalOpen(true);
   };
@@ -109,7 +112,8 @@ export function ProjectManagementPage() {
         name: form.name,
         description: form.description,
         status: form.status,
-        memberIds: form.memberIds
+        memberIds: form.memberIds,
+        managerIds: form.managerIds,
       });
       setIsEditModalOpen(false);
       showSuccess(`Cập nhật dự án ${selectedProject.name} thành công!`);
@@ -142,13 +146,25 @@ export function ProjectManagementPage() {
     });
   };
 
+  const handleManagerToggle = (userId: number) => {
+    setForm(prev => {
+      const isSelected = prev.managerIds.includes(userId);
+      if (isSelected) {
+        return { ...prev, managerIds: prev.managerIds.filter(id => id !== userId) };
+      } else {
+        return { ...prev, managerIds: [...prev.managerIds, userId] };
+      }
+    });
+  };
+
   const openCreateModal = () => {
-    setForm({ name: '', description: '', departmentId: 0, status: 'ACTIVE', memberIds: [] });
+    setForm({ name: '', description: '', departmentId: 0, status: 'ACTIVE', memberIds: [], managerIds: [] });
     setIsCreateModalOpen(true);
   };
 
   // Filter users by selected department for the form
   const availableUsersForDept = users.filter(u => u.departmentId === form.departmentId);
+  const availableLeadersForDept = availableUsersForDept.filter(u => u.role === 'LEADER' || u.role === 'ADMIN');
 
   return (
     <AdminLayout title="Quản lý Dự án">
@@ -204,7 +220,7 @@ export function ProjectManagementPage() {
                 <div className="proj-card-footer">
                   <div className="proj-stat">
                     <Users size={14} />
-                    <span>{p.members?.length || 0} thành viên</span>
+                    <span>{p.managers?.length || 0} Trưởng dự án | {p.members?.length || 0} thành viên</span>
                   </div>
                   <div className="proj-stat">
                     <Calendar size={14} />
@@ -233,7 +249,7 @@ export function ProjectManagementPage() {
           </div>
           <div className="form-group">
             <label>Phòng ban quản lý *</label>
-            <select required value={form.departmentId} onChange={(e) => setForm({...form, departmentId: Number(e.target.value), memberIds: []})}>
+            <select required value={form.departmentId} onChange={(e) => setForm({...form, departmentId: Number(e.target.value), memberIds: [], managerIds: []})}>
               <option value={0} disabled>-- Chọn phòng ban --</option>
               {departments.map(d => <option key={d.id} value={d.id}>{d.name}</option>)}
             </select>
@@ -244,22 +260,41 @@ export function ProjectManagementPage() {
           </div>
           
           {form.departmentId > 0 && (
-            <div className="form-group">
-              <label>Thành viên tham gia</label>
-              <div className="members-select-list">
-                {availableUsersForDept.length === 0 ? <p className="no-members-text">Phòng ban này chưa có nhân sự nào.</p> : null}
-                {availableUsersForDept.map(u => (
-                  <label key={u.id} className="member-checkbox-label">
-                    <input 
-                      type="checkbox" 
-                      checked={form.memberIds.includes(u.id)}
-                      onChange={() => handleMemberToggle(u.id)}
-                    />
-                    {u.fullName} ({u.username})
-                  </label>
-                ))}
+            <>
+              <div className="form-group">
+                <label>Trưởng dự án (Leader quản lý)</label>
+                <div className="members-select-list">
+                  {availableLeadersForDept.length === 0 ? <p className="no-members-text">Phòng ban này chưa có Leader nào.</p> : null}
+                  {availableLeadersForDept.map(u => (
+                    <label key={u.id} className="member-checkbox-label">
+                      <input 
+                        type="checkbox" 
+                        checked={form.managerIds.includes(u.id)}
+                        onChange={() => handleManagerToggle(u.id)}
+                      />
+                      {u.fullName} ({u.username})
+                    </label>
+                  ))}
+                </div>
               </div>
-            </div>
+
+              <div className="form-group">
+                <label>Thành viên thực hiện</label>
+                <div className="members-select-list">
+                  {availableUsersForDept.length === 0 ? <p className="no-members-text">Phòng ban này chưa có nhân sự nào.</p> : null}
+                  {availableUsersForDept.map(u => (
+                    <label key={u.id} className="member-checkbox-label">
+                      <input 
+                        type="checkbox" 
+                        checked={form.memberIds.includes(u.id)}
+                        onChange={() => handleMemberToggle(u.id)}
+                      />
+                      {u.fullName} ({u.username})
+                    </label>
+                  ))}
+                </div>
+              </div>
+            </>
           )}
 
           <div className="modal-actions">
@@ -288,9 +323,25 @@ export function ProjectManagementPage() {
             <label>Mô tả dự án</label>
             <textarea rows={3} value={form.description} onChange={(e) => setForm({...form, description: e.target.value})} />
           </div>
-          
+
           <div className="form-group">
-            <label>Thành viên tham gia (thuộc phòng ban {selectedProject?.departmentName})</label>
+            <label>Trưởng dự án (Leader quản lý)</label>
+            <div className="members-select-list">
+              {availableLeadersForDept.map(u => (
+                <label key={u.id} className="member-checkbox-label">
+                  <input 
+                    type="checkbox" 
+                    checked={form.managerIds.includes(u.id)}
+                    onChange={() => handleManagerToggle(u.id)}
+                  />
+                  {u.fullName} ({u.username})
+                </label>
+              ))}
+            </div>
+          </div>
+
+          <div className="form-group">
+            <label>Thành viên thực hiện (thuộc phòng ban {selectedProject?.departmentName})</label>
             <div className="members-select-list">
               {availableUsersForDept.map(u => (
                 <label key={u.id} className="member-checkbox-label">

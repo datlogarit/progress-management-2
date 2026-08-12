@@ -91,6 +91,20 @@ CREATE TABLE project_members (
 COMMENT ON TABLE project_members IS 'Nhân viên tham gia dự án (N-N)';
 
 -- ============================================================
+-- 5.1. BẢNG: project_managers
+-- ============================================================
+CREATE TABLE project_managers (
+    project_id  INT NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
+    user_id     INT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    assigned_at TIMESTAMP NOT NULL DEFAULT NOW(),
+    PRIMARY KEY (project_id, user_id)
+);
+
+COMMENT ON TABLE project_managers IS 'Trưởng dự án / Người quản lý dự án (N-N)';
+CREATE INDEX idx_project_managers_project_id ON project_managers(project_id);
+CREATE INDEX idx_project_managers_user_id ON project_managers(user_id);
+
+-- ============================================================
 -- 6. BẢNG: tasks
 -- ============================================================
 CREATE TABLE tasks (

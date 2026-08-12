@@ -20,6 +20,7 @@ public class ProjectResponse {
     private String departmentName;
     private String status;
     private List<UserSummaryDto> members;
+    private List<UserSummaryDto> managers;
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
 }

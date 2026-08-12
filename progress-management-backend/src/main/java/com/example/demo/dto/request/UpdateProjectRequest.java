@@ -22,4 +22,6 @@ public class UpdateProjectRequest {
     private String status;
 
     private List<Long> memberIds;
+
+    private List<Long> managerIds;
 }

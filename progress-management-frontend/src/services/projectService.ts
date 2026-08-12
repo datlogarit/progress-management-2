@@ -18,6 +18,7 @@ export interface ProjectDTO {
   departmentName: string;
   status: string;
   members: UserDTO[];
+  managers?: UserDTO[];
   createdAt: string;
   updatedAt: string;
 }
@@ -27,6 +28,7 @@ export interface CreateProjectRequest {
   description?: string;
   departmentId: number;
   memberIds: number[];
+  managerIds?: number[];
 }
 
 export interface UpdateProjectRequest {
@@ -34,6 +36,7 @@ export interface UpdateProjectRequest {
   description?: string;
   status: string;
   memberIds: number[];
+  managerIds?: number[];
 }
 
 export const getProjectsApi = async (departmentId?: number): Promise<ProjectDTO[]> => {
