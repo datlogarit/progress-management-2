@@ -90,15 +90,14 @@ public class AuthServiceImpl implements AuthService {
                     .orElseThrow(() -> new ResourceNotFoundException("Department not found with id: " + request.getDepartmentId()));
         }
 
-        Role targetRole = roleRepository.findByName(request.getRole().name())
-                .orElseThrow(() -> new ResourceNotFoundException("Role not found"));
+        boolean isAdmin = Boolean.TRUE.equals(request.getIsAdmin()) || (request.getRole() == com.example.demo.constant.RoleEnum.ADMIN);
 
         User user = User.builder()
                 .username(request.getUsername())
                 .email(request.getEmail())
                 .passwordHash(passwordEncoder.encode(request.getPassword()))
                 .fullName(request.getFullName())
-                .role(targetRole)
+                .isAdmin(isAdmin)
                 .department(department)
                 .isActive(true)
                 .build();
@@ -147,16 +146,21 @@ public class AuthServiceImpl implements AuthService {
     }
 
     private UserResponse mapToUserResponse(User user) {
-        java.util.List<String> permissions = user.getRole().getPermissions().stream()
-                .map(com.example.demo.entity.Permission::getName)
-                .collect(java.util.stream.Collectors.toList());
+        String roleStr = Boolean.TRUE.equals(user.getIsAdmin()) ? "ADMIN" : "USER";
+        java.util.List<String> permissions = Boolean.TRUE.equals(user.getIsAdmin())
+                ? java.util.List.of("SYSTEM_MANAGE", "USER_READ", "USER_CREATE", "USER_UPDATE", "USER_DELETE",
+                        "DEPARTMENT_READ", "DEPARTMENT_CREATE", "DEPARTMENT_UPDATE", "DEPARTMENT_DELETE",
+                        "PROJECT_READ", "PROJECT_CREATE", "PROJECT_UPDATE", "PROJECT_DELETE",
+                        "TASK_READ", "TASK_CREATE", "TASK_UPDATE", "TASK_DELETE", "TASK_ASSIGN")
+                : java.util.List.of("TASK_READ", "TASK_CREATE", "TASK_UPDATE", "TASK_ASSIGN", "PROJECT_READ", "USER_READ", "DEPARTMENT_READ");
 
         return UserResponse.builder()
                 .id(user.getId())
                 .username(user.getUsername())
                 .email(user.getEmail())
                 .fullName(user.getFullName())
-                .role(user.getRole().getName())
+                .role(roleStr)
+                .isAdmin(user.getIsAdmin())
                 .permissions(permissions)
                 .departmentId(user.getDepartment() != null ? user.getDepartment().getId() : null)
                 .departmentName(user.getDepartment() != null ? user.getDepartment().getName() : null)

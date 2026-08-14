@@ -33,8 +33,9 @@ public class CreateUserRequest {
     @Size(max = 100, message = "Full name cannot exceed 100 characters")
     private String fullName;
 
-    @NotNull(message = "Role is required")
     private RoleEnum role;
+
+    private Boolean isAdmin;
 
     private Long departmentId;
 }

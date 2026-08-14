@@ -11,11 +11,11 @@ import java.lang.annotation.*;
 @Documented
 public @interface Authorize {
 
-    // Required permission for the action. Empty means no specific permission
-    // required (just login).
+    // Required permission for the action. Empty means no specific permission required (just login).
     PermissionEnum[] permission() default {};
 
-    // Allowed roles
+    // Allowed roles (deprecated - authorization uses permission instead)
+    @Deprecated
     RoleEnum[] roles() default {};
 
     // Scope for authorization

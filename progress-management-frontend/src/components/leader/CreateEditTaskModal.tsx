@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import type { TaskDTO, TaskPriority, TaskStatus } from '../../services/taskService';
 import type { UserDTO } from '../../services/authService';
 import type { ProjectDTO } from '../../services/projectService';
+import { useAuth } from '../../context/AuthContext';
 import { Modal } from '../Modal';
 import './CreateEditTaskModal.css';
 
@@ -22,6 +23,7 @@ export function CreateEditTaskModal({
   departmentMembers,
   projects,
 }: CreateEditTaskModalProps) {
+  const { user } = useAuth();
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
   const [priority, setPriority] = useState<TaskPriority>('MEDIUM');
@@ -32,6 +34,39 @@ export function CreateEditTaskModal({
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  // Filter projects to only those where the current user can create/manage tasks (is LEADER or isAdmin)
+  const availableProjects = (projects || []).filter((p) => {
+    if (user?.isAdmin) return true;
+    if (initialTask && String(p.id) === String(initialTask.projectId)) return true;
+    return p.members?.some(
+      (m) => String(m.id) === String(user?.id) && String(m.projectRole).toUpperCase() === 'LEADER'
+    );
+  });
+
+  const selectedProject = projects.find(p => String(p.id) === String(projectId));
+  const combinedMembersMap = new Map<number, UserDTO>();
+
+  (departmentMembers || []).forEach(m => combinedMembersMap.set(m.id, m));
+  (selectedProject?.members || []).forEach(m => {
+    if (!combinedMembersMap.has(m.id)) {
+      combinedMembersMap.set(m.id, {
+        id: m.id,
+        username: m.username,
+        fullName: m.fullName,
+        email: m.email,
+        role: (m.projectRole || 'EMPLOYEE') as any,
+        permissions: [],
+        departmentId: selectedProject?.departmentId || null,
+        departmentName: selectedProject?.departmentName || null,
+        isActive: true,
+        createdAt: '',
+        updatedAt: '',
+      });
+    }
+  });
+
+  const availableAssignees = Array.from(combinedMembersMap.values());
+
   useEffect(() => {
     if (initialTask) {
       setTitle(initialTask.title);
@@ -41,17 +76,23 @@ export function CreateEditTaskModal({
       setDueDate(initialTask.dueDate ? new Date(initialTask.dueDate).toISOString().slice(0, 16) : '');
       setAssigneeId(initialTask.assignee ? String(initialTask.assignee.id) : '');
       setProjectId(initialTask.projectId ? String(initialTask.projectId) : '');
-    } else {
+    } else if (isOpen) {
       setTitle('');
       setDescription('');
       setPriority('MEDIUM');
       setStatus('PENDING');
       setDueDate('');
       setAssigneeId('');
-      setProjectId('');
+      if (availableProjects && availableProjects.length > 0) {
+        if (!projectId || !availableProjects.some(p => String(p.id) === String(projectId))) {
+          setProjectId(String(availableProjects[0].id));
+        }
+      } else {
+        setProjectId('');
+      }
     }
     setError(null);
-  }, [initialTask, isOpen]);
+  }, [initialTask, isOpen, projects, user]);
 
   const getMinDateTime = () => {
     const now = new Date();
@@ -145,14 +186,25 @@ export function CreateEditTaskModal({
             className="form-control"
             value={projectId}
             onChange={(e) => setProjectId(e.target.value)}
-            disabled={loading || Boolean(initialTask)} // Project usually shouldn't change after creation
+            disabled={loading || Boolean(initialTask) || availableProjects.length === 0}
           >
-            <option value="">-- Chọn dự án --</option>
-            {projects.map((p) => (
-              <option key={p.id} value={p.id}>
-                {p.name}
-              </option>
-            ))}
+            {availableProjects.length === 0 ? (
+              <option value="">-- Bạn không quản lý dự án nào --</option>
+            ) : (
+              <>
+                <option value="">-- Chọn dự án --</option>
+                {availableProjects.map((p) => {
+                  const isLeaderOfProj = p.members?.some(
+                    m => String(m.id) === String(user?.id) && String(m.projectRole).toUpperCase() === 'LEADER'
+                  ) || user?.isAdmin;
+                  return (
+                    <option key={p.id} value={p.id}>
+                      {p.name} {isLeaderOfProj ? '(Trưởng dự án)' : ''}
+                    </option>
+                  );
+                })}
+              </>
+            )}
           </select>
         </div>
 
@@ -203,13 +255,11 @@ export function CreateEditTaskModal({
               disabled={loading}
             >
               <option value="">-- Chọn nhân viên thực hiện --</option>
-              {departmentMembers
-                .filter((member) => member.role === 'EMPLOYEE')
-                .map((member) => (
-                  <option key={member.id} value={member.id}>
-                    {member.fullName} (@{member.username})
-                  </option>
-                ))}
+              {availableAssignees.map((member) => (
+                <option key={member.id} value={member.id}>
+                  {member.fullName} (@{member.username})
+                </option>
+              ))}
             </select>
           </div>
 

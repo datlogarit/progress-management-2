@@ -6,7 +6,8 @@
 -- ============================================================
 -- 1. ENUM TYPES
 -- ============================================================
-CREATE TYPE role_enum AS ENUM ('ADMIN', 'LEADER', 'EMPLOYEE');
+CREATE TYPE role_enum AS ENUM ('ADMIN', 'USER');
+CREATE TYPE project_role_enum AS ENUM ('LEADER', 'EMPLOYEE');
 CREATE TYPE task_status_enum AS ENUM ('TODO', 'IN_PROGRESS', 'DONE');
 CREATE TYPE notification_type_enum AS ENUM ('TASK_ASSIGNED', 'STATUS_CHANGED', 'NEW_COMMENT');
 
@@ -66,7 +67,7 @@ CREATE TABLE users (
     email           VARCHAR(150) UNIQUE,
     password_hash   VARCHAR(255) NOT NULL,          -- BCrypt hash, dùng để xác thực JWT login
     full_name       VARCHAR(100) NOT NULL,
-    role            role_enum    NOT NULL,
+    is_admin        BOOLEAN      NOT NULL DEFAULT FALSE,
     department_id   INT REFERENCES departments(id) ON DELETE SET NULL,
     team_id         INT REFERENCES teams(id) ON DELETE SET NULL,
     is_active       BOOLEAN      NOT NULL DEFAULT TRUE,
@@ -76,7 +77,7 @@ CREATE TABLE users (
 
 CREATE INDEX idx_users_department_id ON users(department_id);
 CREATE INDEX idx_users_team_id ON users(team_id);
-CREATE INDEX idx_users_role ON users(role);
+CREATE INDEX idx_users_is_admin ON users(is_admin);
 
 -- ============================================================
 -- 5. BẢNG: project_members
@@ -84,25 +85,14 @@ CREATE INDEX idx_users_role ON users(role);
 CREATE TABLE project_members (
     project_id  INT NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
     user_id     INT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    role        project_role_enum NOT NULL DEFAULT 'EMPLOYEE',
     joined_at   TIMESTAMP NOT NULL DEFAULT NOW(),
     PRIMARY KEY (project_id, user_id)
 );
 
-COMMENT ON TABLE project_members IS 'Nhân viên tham gia dự án (N-N)';
-
--- ============================================================
--- 5.1. BẢNG: project_managers
--- ============================================================
-CREATE TABLE project_managers (
-    project_id  INT NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
-    user_id     INT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-    assigned_at TIMESTAMP NOT NULL DEFAULT NOW(),
-    PRIMARY KEY (project_id, user_id)
-);
-
-COMMENT ON TABLE project_managers IS 'Trưởng dự án / Người quản lý dự án (N-N)';
-CREATE INDEX idx_project_managers_project_id ON project_managers(project_id);
-CREATE INDEX idx_project_managers_user_id ON project_managers(user_id);
+COMMENT ON TABLE project_members IS 'Thành viên tham gia dự án kèm vai trò dự án (Leader/Employee)';
+CREATE INDEX idx_project_members_project_id ON project_members(project_id);
+CREATE INDEX idx_project_members_user_id ON project_members(user_id);
 
 -- ============================================================
 -- 6. BẢNG: tasks

@@ -27,8 +27,7 @@ public class ProjectController {
     private final ProjectService projectService;
 
     @GetMapping
-    @Authorize(permission = { PermissionEnum.PROJECT_READ }, roles = { RoleEnum.ADMIN, RoleEnum.LEADER,
-            RoleEnum.EMPLOYEE })
+    @Authorize(permission = { PermissionEnum.PROJECT_READ })
     public ResponseEntity<List<ProjectResponse>> getAllProjects(
             @RequestParam(required = false) Long departmentId,
             @AuthenticationPrincipal UserPrincipal currentUser) {
@@ -37,8 +36,7 @@ public class ProjectController {
     }
 
     @GetMapping("/{id}")
-    @Authorize(permission = { PermissionEnum.PROJECT_READ }, roles = { RoleEnum.ADMIN, RoleEnum.LEADER,
-            RoleEnum.EMPLOYEE }, scope = ScopeType.PROJECT, scopeParam = "id")
+    @Authorize(permission = { PermissionEnum.PROJECT_READ }, scope = ScopeType.PROJECT, scopeParam = "id")
     public ResponseEntity<ProjectResponse> getProjectById(
             @PathVariable Long id,
             @AuthenticationPrincipal UserPrincipal currentUser) {
@@ -47,15 +45,14 @@ public class ProjectController {
     }
 
     @PostMapping
-    @Authorize(permission = { PermissionEnum.PROJECT_CREATE }, roles = { RoleEnum.ADMIN })
+    @Authorize(permission = { PermissionEnum.PROJECT_CREATE })
     public ResponseEntity<ProjectResponse> createProject(@Valid @RequestBody CreateProjectRequest request) {
         ProjectResponse response = projectService.createProject(request);
         return ResponseEntity.status(HttpStatus.CREATED).body(response);
     }
 
     @PutMapping("/{id}")
-    @Authorize(permission = { PermissionEnum.PROJECT_UPDATE }, roles = { RoleEnum.ADMIN,
-            RoleEnum.LEADER }, scope = ScopeType.PROJECT, scopeParam = "id")
+    @Authorize(permission = { PermissionEnum.PROJECT_UPDATE }, scope = ScopeType.PROJECT, scopeParam = "id")
     public ResponseEntity<ProjectResponse> updateProject(
             @PathVariable Long id,
             @Valid @RequestBody UpdateProjectRequest request) {
@@ -64,8 +61,7 @@ public class ProjectController {
     }
 
     @DeleteMapping("/{id}")
-    @Authorize(permission = { PermissionEnum.PROJECT_DELETE }, roles = {
-            RoleEnum.ADMIN }, scope = ScopeType.PROJECT, scopeParam = "id")
+    @Authorize(permission = { PermissionEnum.PROJECT_DELETE }, scope = ScopeType.PROJECT, scopeParam = "id")
     public ResponseEntity<Void> deleteProject(@PathVariable Long id) {
         projectService.deleteProject(id);
         return ResponseEntity.noContent().build();

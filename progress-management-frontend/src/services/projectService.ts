@@ -1,5 +1,3 @@
-import type { UserDTO } from './authService';
-
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || '/api/v1';
 
 function getAuthHeaders() {
@@ -10,6 +8,21 @@ function getAuthHeaders() {
   };
 }
 
+export type ProjectRole = 'LEADER' | 'EMPLOYEE';
+
+export interface ProjectMemberDTO {
+  id: number;
+  username: string;
+  fullName: string;
+  email: string;
+  projectRole: ProjectRole;
+}
+
+export interface ProjectMemberRequest {
+  userId: number;
+  role: ProjectRole;
+}
+
 export interface ProjectDTO {
   id: number;
   name: string;
@@ -17,8 +30,7 @@ export interface ProjectDTO {
   departmentId: number;
   departmentName: string;
   status: string;
-  members: UserDTO[];
-  managers?: UserDTO[];
+  members: ProjectMemberDTO[];
   createdAt: string;
   updatedAt: string;
 }
@@ -27,7 +39,8 @@ export interface CreateProjectRequest {
   name: string;
   description?: string;
   departmentId: number;
-  memberIds: number[];
+  projectMembers?: ProjectMemberRequest[];
+  memberIds?: number[];
   managerIds?: number[];
 }
 
@@ -35,7 +48,8 @@ export interface UpdateProjectRequest {
   name: string;
   description?: string;
   status: string;
-  memberIds: number[];
+  projectMembers?: ProjectMemberRequest[];
+  memberIds?: number[];
   managerIds?: number[];
 }
 

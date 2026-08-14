@@ -68,7 +68,7 @@ public class DataSeeder implements CommandLineRunner {
                             .filter(p -> p.getName().startsWith("TASK_") || p.getName().equals("USER_READ")
                                     || p.getName().equals("DEPARTMENT_READ") || p.getName().equals("PROJECT_READ"))
                             .collect(Collectors.toSet());
-                } else if (roleEnum == RoleEnum.EMPLOYEE) {
+                } else if (roleEnum == RoleEnum.EMPLOYEE || roleEnum == RoleEnum.USER) {
                     rolePermissions = permissionRepository.findAll().stream()
                             .filter(p -> p.getName().equals("TASK_READ") || p.getName().equals("TASK_UPDATE")
                                     || p.getName().equals("PROJECT_READ"))
@@ -88,14 +88,12 @@ public class DataSeeder implements CommandLineRunner {
     private void seedAdminUser() {
         log.info("Seeding admin user...");
         if (!userRepository.existsByUsername("admin")) {
-            Role adminRole = roleRepository.findByName("ADMIN")
-                    .orElseThrow(() -> new RuntimeException("ADMIN role not found"));
             User admin = User.builder()
                     .username("admin")
                     .email("admin@example.com")
                     .passwordHash(passwordEncoder.encode("admin123"))
                     .fullName("System Admin")
-                    .role(adminRole)
+                    .isAdmin(true)
                     .isActive(true)
                     .build();
             userRepository.save(admin);

@@ -31,7 +31,7 @@ import {
 import './LeaderTaskManagementPage.css';
 
 export function LeaderTaskManagementPage() {
-  const { user, hasPermission } = useAuth();
+  const { user } = useAuth();
   const [tasks, setTasks] = useState<TaskDTO[]>([]);
   const [departmentMembers, setDepartmentMembers] = useState<UserDTO[]>([]);
   const [projects, setProjects] = useState<ProjectDTO[]>([]);
@@ -44,6 +44,7 @@ export function LeaderTaskManagementPage() {
   const [selectedStatus, setSelectedStatus] = useState<string>('ALL');
   const [selectedAssignee, setSelectedAssignee] = useState<string>('ALL');
   const [selectedProjectFilter, setSelectedProjectFilter] = useState<string>('ALL');
+  const [selectedRoleFilter, setSelectedRoleFilter] = useState<'ALL' | 'LEADER' | 'EMPLOYEE'>('ALL');
 
   // Modals state
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
@@ -52,7 +53,14 @@ export function LeaderTaskManagementPage() {
 
   const [searchParams, setSearchParams] = useSearchParams();
   const taskIdParam = searchParams.get('taskId');
+  const projectIdParam = searchParams.get('projectId');
   const commentIdParam = searchParams.get('commentId'); // Pass to modal later
+
+  useEffect(() => {
+    if (projectIdParam) {
+      setSelectedProjectFilter(projectIdParam);
+    }
+  }, [projectIdParam]);
 
   const fetchData = async () => {
     setLoading(true);
@@ -61,7 +69,7 @@ export function LeaderTaskManagementPage() {
       const [tasksData, usersData, projectsData] = await Promise.all([
         getTasksApi(),
         user?.departmentId ? getAllUsersApi(user.departmentId) : getAllUsersApi(),
-        getProjectsApi(user?.departmentId || undefined)
+        getProjectsApi()
       ]);
       setTasks(tasksData);
       setDepartmentMembers(usersData);
@@ -115,8 +123,17 @@ export function LeaderTaskManagementPage() {
     }
   };
 
-  // Filter tasks
+  // Managed projects filter
+  const managedProjects = (projects || []).filter(p => 
+    user?.isAdmin || p.members?.some(m => String(m.id) === String(user?.id) && String(m.projectRole).toUpperCase() === 'LEADER')
+  );
+  const managedProjectIds = new Set(managedProjects.map(p => p.id));
+
+  // Filter tasks: Only tasks of projects where user is LEADER (or isAdmin)
   const filteredTasks = tasks.filter((t) => {
+    const isManaged = Boolean(user?.isAdmin || (t.projectId && managedProjectIds.has(t.projectId)));
+    if (!isManaged) return false;
+
     const matchesSearch = t.title.toLowerCase().includes(searchTerm.toLowerCase()) || 
       (t.description && t.description.toLowerCase().includes(searchTerm.toLowerCase()));
     const matchesStatus = selectedStatus === 'ALL' || t.status === selectedStatus;
@@ -158,8 +175,8 @@ export function LeaderTaskManagementPage() {
               <div className="filter-select-wrapper">
                 <Filter size={16} className="filter-icon" />
                 <select value={selectedProjectFilter} onChange={(e) => setSelectedProjectFilter(e.target.value)}>
-                  <option value="ALL">Tất cả dự án</option>
-                  {projects.map((p) => (
+                  <option value="ALL">Tất cả dự án quản lý</option>
+                  {managedProjects.map((p) => (
                     <option key={p.id} value={p.id}>
                       {p.name}
                     </option>
@@ -178,11 +195,18 @@ export function LeaderTaskManagementPage() {
               </div>
 
               <div className="filter-select-wrapper">
+                <select value={selectedRoleFilter} onChange={(e) => setSelectedRoleFilter(e.target.value as any)}>
+                  <option value="ALL">Tất cả vai trò</option>
+                  <option value="LEADER">Dự án tôi quản lý (Leader)</option>
+                  <option value="EMPLOYEE">Công việc giao cho tôi (Employee)</option>
+                </select>
+              </div>
+
+              <div className="filter-select-wrapper">
                 <select value={selectedAssignee} onChange={(e) => setSelectedAssignee(e.target.value)}>
                   <option value="ALL">Tất cả người thực hiện</option>
                   <option value="UNASSIGNED">Chưa phân công</option>
                   {departmentMembers
-                    .filter((m) => m.role === 'EMPLOYEE')
                     .map((m) => (
                       <option key={m.id} value={m.id}>
                         {m.fullName}
@@ -210,7 +234,7 @@ export function LeaderTaskManagementPage() {
                 </button>
               </div>
 
-              {hasPermission('TASK_CREATE') && (
+              {!user?.isAdmin && (
                 <button className="btn-primary-add" onClick={() => { setEditingTask(null); setIsCreateModalOpen(true); }}>
                   <Plus size={18} /> Tạo Task Mới
                 </button>

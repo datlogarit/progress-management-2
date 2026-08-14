@@ -23,6 +23,8 @@ public class CreateProjectRequest {
     @NotNull(message = "ID phòng ban không được để trống")
     private Long departmentId;
 
+    private List<ProjectMemberRequest> projectMembers;
+
     private List<Long> memberIds;
 
     private List<Long> managerIds;

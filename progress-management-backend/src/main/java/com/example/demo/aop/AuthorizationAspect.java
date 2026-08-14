@@ -32,6 +32,7 @@ public class AuthorizationAspect {
     private final ProjectRepository projectRepository;
     private final TaskRepository taskRepository;
     private final UserRepository userRepository;
+    private final com.example.demo.repository.ProjectMemberRepository projectMemberRepository;
 
     @Before("@annotation(authorize)")
     public void checkAuthorization(JoinPoint joinPoint, Authorize authorize) {
@@ -45,79 +46,75 @@ public class AuthorizationAspect {
         User user = userRepository.findById(currentUser.getId())
                 .orElseThrow(() -> new AccessDeniedException("User not found"));
 
-        // 1. Check Permissions
-        if (authorize.permission().length > 0) {
-            boolean hasPermission = false;
-            for (PermissionEnum perm : authorize.permission()) {
+        boolean isSystemAdmin = Boolean.TRUE.equals(user.getIsAdmin());
+        if (isSystemAdmin) {
+            // System Admin has full access to all endpoints
+            return;
+        }
+
+        PermissionEnum[] requiredPermissions = authorize.permission();
+        if (requiredPermissions.length > 0) {
+            boolean hasAuthorityPermission = false;
+            for (PermissionEnum perm : requiredPermissions) {
                 if (currentUser.getAuthorities().stream().anyMatch(a -> a.getAuthority().equals(perm.name()))) {
-                    hasPermission = true;
+                    hasAuthorityPermission = true;
                     break;
                 }
             }
-            if (!hasPermission) {
-                throw new AccessDeniedException("User does not have required permissions");
-            }
-        }
 
-        // 2. Check Roles
-        if (authorize.roles().length > 0) {
-            boolean hasRole = false;
-            for (RoleEnum role : authorize.roles()) {
-                if (user.getRole().getName().equalsIgnoreCase(role.name())) {
-                    hasRole = true;
-                    break;
-                }
-            }
-            if (!hasRole) {
-                throw new AccessDeniedException("User does not have required role");
-            }
-        }
+            // Check Scope & Project Permissions
+            if (authorize.scope() != ScopeType.NONE) {
+                String scopeParam = authorize.scopeParam();
+                Long scopeId = extractScopeId(joinPoint, scopeParam);
 
-        // 3. Check Scope
-        if (authorize.scope() != ScopeType.NONE) {
-            String scopeParam = authorize.scopeParam();
-            Long scopeId = extractScopeId(joinPoint, scopeParam);
+                if (scopeId != null) {
+                    Long targetProjectId = null;
+                    if (authorize.scope() == ScopeType.PROJECT) {
+                        targetProjectId = scopeId;
+                        RequestContext.setVerifiedProjectId(targetProjectId.toString());
+                    } else if (authorize.scope() == ScopeType.TASK) {
+                        Task task = taskRepository.findById(scopeId)
+                                .orElseThrow(() -> new AccessDeniedException("Task not found"));
+                        if (task.getProject() != null) {
+                            targetProjectId = task.getProject().getId();
+                        }
+                        RequestContext.setVerifiedTaskId(scopeId.toString());
+                    }
 
-            if (scopeId == null) {
-                // If it's a creation method, maybe the scope is in the body, but for path
-                // variables it should be present.
-                // Assuming it's present for this simple implementation or let it pass if null
-                // and handle in service.
-                return;
-            }
+                    if (targetProjectId != null) {
+                        var memberOpt = projectMemberRepository.findByProjectIdAndUserId(targetProjectId, user.getId());
+                        boolean isSameDepartmentUser = user.getDepartment() != null
+                                && projectRepository.findById(targetProjectId)
+                                        .map(p -> p.getDepartment() != null && p.getDepartment().getId().equals(user.getDepartment().getId()))
+                                        .orElse(false);
 
-            Long targetProjectId = null;
-            if (authorize.scope() == ScopeType.PROJECT) {
-                targetProjectId = scopeId;
-                RequestContext.setVerifiedProjectId(targetProjectId.toString());
-            } else if (authorize.scope() == ScopeType.TASK) {
-                Task task = taskRepository.findById(scopeId)
-                        .orElseThrow(() -> new AccessDeniedException("Task not found"));
-                if (task.getProject() != null) {
-                    targetProjectId = task.getProject().getId();
-                }
-                RequestContext.setVerifiedTaskId(scopeId.toString());
-            }
+                        if (memberOpt.isEmpty() && !isSameDepartmentUser) {
+                            throw new AccessDeniedException("User is not a member of this project");
+                        }
 
-            if (targetProjectId != null) {
-                Project project = projectRepository.findById(targetProjectId)
-                        .orElseThrow(() -> new AccessDeniedException("Project not found"));
+                        var projectRole = memberOpt.isPresent() ? memberOpt.get().getRole() : null;
 
-                boolean isProjectMember = project.getMembers().stream()
-                        .anyMatch(member -> member.getId().equals(user.getId()));
+                        boolean hasProjectPermission = false;
+                        if (projectRole == com.example.demo.constant.ProjectRoleEnum.LEADER) {
+                            hasProjectPermission = true;
+                        } else if (projectRole == com.example.demo.constant.ProjectRoleEnum.EMPLOYEE || isSameDepartmentUser) {
+                            boolean onlyRead = true;
+                            for (PermissionEnum perm : requiredPermissions) {
+                                if (perm != PermissionEnum.PROJECT_READ && perm != PermissionEnum.TASK_READ) {
+                                    onlyRead = false;
+                                    break;
+                                }
+                            }
+                            hasProjectPermission = onlyRead;
+                        }
 
-                boolean isDepartmentAdmin = false;
-                if (user.getRole().getName().equalsIgnoreCase(RoleEnum.ADMIN.name())
-                        || user.getRole().getName().equalsIgnoreCase("DEPARTMENT_HEAD")) {
-                    if (user.getDepartment() != null && project.getDepartment() != null &&
-                            user.getDepartment().getId().equals(project.getDepartment().getId())) {
-                        isDepartmentAdmin = true;
+                        if (!hasProjectPermission) {
+                            throw new AccessDeniedException("User does not have required permission for this action");
+                        }
                     }
                 }
-
-                if (!isProjectMember && !isDepartmentAdmin) {
-                    throw new AccessDeniedException("User is not authorized for this scope");
-                }
+            } else if (!hasAuthorityPermission) {
+                throw new AccessDeniedException("User does not have required permission for this action");
             }
         }
     }

@@ -23,10 +23,37 @@ public class UserPrincipal implements UserDetails {
     private final Collection<? extends GrantedAuthority> authorities;
 
     public static UserPrincipal create(User user) {
-        List<GrantedAuthority> authorities = user.getRole().getPermissions().stream()
-                .map(permission -> new SimpleGrantedAuthority(permission.getName()))
-                .collect(Collectors.toList());
-        authorities.add(new SimpleGrantedAuthority("ROLE_" + user.getRole().getName()));
+        List<GrantedAuthority> authorities = new java.util.ArrayList<>();
+        if (Boolean.TRUE.equals(user.getIsAdmin())) {
+            authorities.add(new SimpleGrantedAuthority("ROLE_ADMIN"));
+            authorities.add(new SimpleGrantedAuthority("SYSTEM_MANAGE"));
+            authorities.add(new SimpleGrantedAuthority("USER_READ"));
+            authorities.add(new SimpleGrantedAuthority("USER_CREATE"));
+            authorities.add(new SimpleGrantedAuthority("USER_UPDATE"));
+            authorities.add(new SimpleGrantedAuthority("USER_DELETE"));
+            authorities.add(new SimpleGrantedAuthority("DEPARTMENT_READ"));
+            authorities.add(new SimpleGrantedAuthority("DEPARTMENT_CREATE"));
+            authorities.add(new SimpleGrantedAuthority("DEPARTMENT_UPDATE"));
+            authorities.add(new SimpleGrantedAuthority("DEPARTMENT_DELETE"));
+            authorities.add(new SimpleGrantedAuthority("PROJECT_READ"));
+            authorities.add(new SimpleGrantedAuthority("PROJECT_CREATE"));
+            authorities.add(new SimpleGrantedAuthority("PROJECT_UPDATE"));
+            authorities.add(new SimpleGrantedAuthority("PROJECT_DELETE"));
+            authorities.add(new SimpleGrantedAuthority("TASK_READ"));
+            authorities.add(new SimpleGrantedAuthority("TASK_CREATE"));
+            authorities.add(new SimpleGrantedAuthority("TASK_UPDATE"));
+            authorities.add(new SimpleGrantedAuthority("TASK_DELETE"));
+            authorities.add(new SimpleGrantedAuthority("TASK_ASSIGN"));
+        } else {
+            authorities.add(new SimpleGrantedAuthority("ROLE_USER"));
+            authorities.add(new SimpleGrantedAuthority("USER_READ"));
+            authorities.add(new SimpleGrantedAuthority("DEPARTMENT_READ"));
+            authorities.add(new SimpleGrantedAuthority("PROJECT_READ"));
+            authorities.add(new SimpleGrantedAuthority("TASK_READ"));
+            authorities.add(new SimpleGrantedAuthority("TASK_CREATE"));
+            authorities.add(new SimpleGrantedAuthority("TASK_UPDATE"));
+            authorities.add(new SimpleGrantedAuthority("TASK_ASSIGN"));
+        }
 
         return new UserPrincipal(
                 user.getId(),

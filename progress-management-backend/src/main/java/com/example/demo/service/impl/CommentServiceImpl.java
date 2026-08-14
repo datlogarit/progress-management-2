@@ -32,6 +32,7 @@ public class CommentServiceImpl implements CommentService {
     private final CommentRepository commentRepository;
     private final TaskRepository taskRepository;
     private final UserRepository userRepository;
+    private final com.example.demo.repository.ProjectMemberRepository projectMemberRepository;
     private final NotificationService notificationService;
 
     @Override
@@ -45,8 +46,9 @@ public class CommentServiceImpl implements CommentService {
         User user = userRepository.findById(currentUser.getId())
                 .orElseThrow(() -> new ResourceNotFoundException("User not found with id: " + currentUser.getId()));
 
-        if (!"ADMIN".equals(user.getRole().getName())) {
-            if (!task.getProject().getMembers().contains(user)) {
+        if (!Boolean.TRUE.equals(user.getIsAdmin())) {
+            boolean isMember = projectMemberRepository.existsByProjectIdAndUserId(task.getProject().getId(), user.getId());
+            if (!isMember) {
                 throw new UnauthorizedException("You do not have permission to comment on this task");
             }
         }
@@ -95,8 +97,9 @@ public class CommentServiceImpl implements CommentService {
         User user = userRepository.findById(currentUser.getId())
                 .orElseThrow(() -> new ResourceNotFoundException("User not found with id: " + currentUser.getId()));
 
-        if (!"ADMIN".equals(user.getRole().getName())) {
-            if (!task.getProject().getMembers().contains(user)) {
+        if (!Boolean.TRUE.equals(user.getIsAdmin())) {
+            boolean isMember = projectMemberRepository.existsByProjectIdAndUserId(task.getProject().getId(), user.getId());
+            if (!isMember) {
                 throw new UnauthorizedException("You do not have permission to view comments for this task");
             }
         }

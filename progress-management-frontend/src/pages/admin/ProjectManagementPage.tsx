@@ -92,13 +92,15 @@ export function ProjectManagementPage() {
 
   const handleOpenEditModal = (p: ProjectDTO) => {
     setSelectedProject(p);
+    const leaders = p.members ? p.members.filter(m => m.projectRole === 'LEADER').map(m => m.id) : [];
+    const employees = p.members ? p.members.filter(m => m.projectRole === 'EMPLOYEE').map(m => m.id) : [];
     setForm({
       name: p.name,
       description: p.description || '',
       departmentId: p.departmentId,
       status: p.status,
-      memberIds: p.members ? p.members.map(m => m.id) : [],
-      managerIds: p.managers ? p.managers.map(m => m.id) : [],
+      memberIds: employees,
+      managerIds: leaders,
     });
     setIsEditModalOpen(true);
   };
@@ -164,7 +166,7 @@ export function ProjectManagementPage() {
 
   // Filter users by selected department for the form
   const availableUsersForDept = users.filter(u => u.departmentId === form.departmentId);
-  const availableLeadersForDept = availableUsersForDept.filter(u => u.role === 'LEADER' || u.role === 'ADMIN');
+  const availableLeadersForDept = availableUsersForDept;
 
   return (
     <AdminLayout title="Quản lý Dự án">
@@ -220,7 +222,9 @@ export function ProjectManagementPage() {
                 <div className="proj-card-footer">
                   <div className="proj-stat">
                     <Users size={14} />
-                    <span>{p.managers?.length || 0} Trưởng dự án | {p.members?.length || 0} thành viên</span>
+                    <span>
+                      {(p.members ? p.members.filter(m => m.projectRole === 'LEADER').length : 0)} Trưởng dự án | {(p.members ? p.members.filter(m => m.projectRole === 'EMPLOYEE').length : 0)} Nhân viên
+                    </span>
                   </div>
                   <div className="proj-stat">
                     <Calendar size={14} />
@@ -327,6 +331,7 @@ export function ProjectManagementPage() {
           <div className="form-group">
             <label>Trưởng dự án (Leader quản lý)</label>
             <div className="members-select-list">
+              {availableLeadersForDept.length === 0 ? <p className="no-members-text">Phòng ban này chưa có nhân sự nào.</p> : null}
               {availableLeadersForDept.map(u => (
                 <label key={u.id} className="member-checkbox-label">
                   <input 
@@ -343,6 +348,7 @@ export function ProjectManagementPage() {
           <div className="form-group">
             <label>Thành viên thực hiện (thuộc phòng ban {selectedProject?.departmentName})</label>
             <div className="members-select-list">
+              {availableUsersForDept.length === 0 ? <p className="no-members-text">Phòng ban này chưa có nhân sự nào.</p> : null}
               {availableUsersForDept.map(u => (
                 <label key={u.id} className="member-checkbox-label">
                   <input 

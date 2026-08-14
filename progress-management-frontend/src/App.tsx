@@ -7,11 +7,9 @@ import { UserManagementPage } from './pages/admin/UserManagementPage';
 import { DepartmentManagementPage } from './pages/admin/DepartmentManagementPage';
 import { TeamManagementPage } from './pages/admin/TeamManagementPage';
 import { ProjectManagementPage } from './pages/admin/ProjectManagementPage';
-import { LeaderDashboardPage } from './pages/leader/LeaderDashboardPage';
 import { LeaderTaskManagementPage } from './pages/leader/LeaderTaskManagementPage';
 import { LeaderTeamPage } from './pages/leader/LeaderTeamPage';
 import { EmployeeDashboardPage } from './pages/employee/EmployeeDashboardPage';
-import { EmployeeTasksPage } from './pages/employee/EmployeeTasksPage';
 import './index.css';
 
 interface ProtectedRouteProps {
@@ -20,7 +18,7 @@ interface ProtectedRouteProps {
 }
 
 function ProtectedRoute({ children, requiredPermissions }: ProtectedRouteProps) {
-  const { isAuthenticated, loading, hasPermission } = useAuth();
+  const { user, isAuthenticated, loading, hasPermission } = useAuth();
 
   if (loading) {
     return (
@@ -34,16 +32,20 @@ function ProtectedRoute({ children, requiredPermissions }: ProtectedRouteProps) 
     return <Navigate to="/login" replace />;
   }
 
+  if (user?.isAdmin || user?.role === 'ADMIN') {
+    return <>{children}</>;
+  }
+
   if (requiredPermissions && requiredPermissions.length > 0) {
     const hasAccess = requiredPermissions.every(permission => hasPermission(permission));
     if (!hasAccess) {
-      if (hasPermission('SYSTEM_MANAGE')) {
-        return <Navigate to="/admin/dashboard" replace />;
-      }
       if (hasPermission('TASK_ASSIGN')) {
         return <Navigate to="/leader/dashboard" replace />;
       }
-      return <Navigate to="/employee/dashboard" replace />;
+      if (hasPermission('TASK_READ')) {
+        return <Navigate to="/home" replace />;
+      }
+      return <Navigate to="/login" replace />;
     }
   }
 
@@ -51,15 +53,12 @@ function ProtectedRoute({ children, requiredPermissions }: ProtectedRouteProps) 
 }
 
 function RootRedirect() {
-  const { hasPermission } = useAuth();
+  const { user, hasPermission } = useAuth();
 
-  if (hasPermission('SYSTEM_MANAGE')) {
+  if (user?.isAdmin || user?.role === 'ADMIN' || hasPermission('SYSTEM_MANAGE')) {
     return <Navigate to="/admin/dashboard" replace />;
   }
-  if (hasPermission('TASK_ASSIGN')) {
-    return <Navigate to="/leader/dashboard" replace />;
-  }
-  return <Navigate to="/employee/dashboard" replace />;
+  return <Navigate to="/home" replace />;
 }
 
 function App() {
@@ -75,6 +74,16 @@ function App() {
             element={
               <ProtectedRoute>
                 <RootRedirect />
+              </ProtectedRoute>
+            }
+          />
+
+          {/* Home / Workspace Main Route */}
+          <Route
+            path="/home"
+            element={
+              <ProtectedRoute requiredPermissions={['TASK_READ']}>
+                <EmployeeDashboardPage />
               </ProtectedRoute>
             }
           />
@@ -121,19 +130,11 @@ function App() {
             }
           />
 
-          {/* Leader & Team Routes */}
-          <Route
-            path="/leader/dashboard"
-            element={
-              <ProtectedRoute requiredPermissions={['TASK_ASSIGN']}>
-                <LeaderDashboardPage />
-              </ProtectedRoute>
-            }
-          />
+          {/* Workspace Task & Team Routes */}
           <Route
             path="/leader/tasks"
             element={
-              <ProtectedRoute requiredPermissions={['TASK_ASSIGN']}>
+              <ProtectedRoute requiredPermissions={['TASK_READ']}>
                 <LeaderTaskManagementPage />
               </ProtectedRoute>
             }
@@ -141,29 +142,16 @@ function App() {
           <Route
             path="/leader/team"
             element={
-              <ProtectedRoute requiredPermissions={['TASK_ASSIGN']}>
+              <ProtectedRoute requiredPermissions={['TASK_READ']}>
                 <LeaderTeamPage />
               </ProtectedRoute>
             }
           />
 
-          {/* Employee Routes */}
-          <Route
-            path="/employee/dashboard"
-            element={
-              <ProtectedRoute requiredPermissions={['TASK_READ']}>
-                <EmployeeDashboardPage />
-              </ProtectedRoute>
-            }
-          />
-          <Route
-            path="/employee/tasks"
-            element={
-              <ProtectedRoute requiredPermissions={['TASK_READ']}>
-                <EmployeeTasksPage />
-              </ProtectedRoute>
-            }
-          />
+          {/* Redirect aliases for backward compatibility */}
+          <Route path="/employee/dashboard" element={<Navigate to="/home" replace />} />
+          <Route path="/leader/dashboard" element={<Navigate to="/home" replace />} />
+          <Route path="/employee/tasks" element={<Navigate to="/leader/tasks" replace />} />
 
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>

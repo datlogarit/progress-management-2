@@ -19,8 +19,7 @@ public class ProjectResponse {
     private Long departmentId;
     private String departmentName;
     private String status;
-    private List<UserSummaryDto> members;
-    private List<UserSummaryDto> managers;
+    private List<ProjectMemberDto> members;
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
 }

@@ -1,6 +1,7 @@
 package com.example.demo.service.impl;
 
 import com.example.demo.constant.NotificationType;
+import com.example.demo.constant.ProjectRoleEnum;
 import com.example.demo.constant.TaskPriority;
 import com.example.demo.constant.TaskStatus;
 import com.example.demo.dto.request.AssignTaskRequest;
@@ -10,11 +11,13 @@ import com.example.demo.dto.request.UpdateTaskStatusRequest;
 import com.example.demo.dto.response.TaskResponse;
 import com.example.demo.dto.response.UserSummaryDto;
 import com.example.demo.entity.Project;
+import com.example.demo.entity.ProjectMember;
 import com.example.demo.entity.Task;
 import com.example.demo.entity.User;
 import com.example.demo.exception.CustomException;
 import com.example.demo.exception.ResourceNotFoundException;
 import com.example.demo.exception.UnauthorizedException;
+import com.example.demo.repository.ProjectMemberRepository;
 import com.example.demo.repository.ProjectRepository;
 import com.example.demo.repository.TaskRepository;
 import com.example.demo.repository.UserRepository;
@@ -29,6 +32,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Optional;
 import java.util.stream.Collectors;
 
 @Slf4j
@@ -39,6 +43,7 @@ public class TaskServiceImpl implements TaskService {
     private final TaskRepository taskRepository;
     private final UserRepository userRepository;
     private final ProjectRepository projectRepository;
+    private final ProjectMemberRepository projectMemberRepository;
     private final NotificationService notificationService;
 
     @Override
@@ -70,13 +75,9 @@ public class TaskServiceImpl implements TaskService {
                     .orElseThrow(() -> new ResourceNotFoundException(
                             "Assignee user not found with id: " + request.getAssigneeId()));
 
-            if (!project.getMembers().contains(assignee)) {
+            boolean isMember = projectMemberRepository.existsByProjectIdAndUserId(project.getId(), assignee.getId());
+            if (!isMember) {
                 throw new CustomException("Assignee is not a member of the project", HttpStatus.BAD_REQUEST,
-                        "INVALID_ASSIGNEE");
-            }
-
-            if (!"EMPLOYEE".equals(assignee.getRole().getName())) {
-                throw new CustomException("Chỉ được giao công việc cho Nhân viên", HttpStatus.BAD_REQUEST,
                         "INVALID_ASSIGNEE");
             }
         }
@@ -144,13 +145,9 @@ public class TaskServiceImpl implements TaskService {
                 User newAssignee = userRepository.findById(request.getAssigneeId())
                         .orElseThrow(() -> new ResourceNotFoundException("Assignee not found"));
 
-                if (!task.getProject().getMembers().contains(newAssignee)) {
+                boolean isMember = projectMemberRepository.existsByProjectIdAndUserId(task.getProject().getId(), newAssignee.getId());
+                if (!isMember) {
                     throw new CustomException("Assignee is not a member of the project", HttpStatus.BAD_REQUEST,
-                            "INVALID_ASSIGNEE");
-                }
-
-                if (!"EMPLOYEE".equals(newAssignee.getRole().getName())) {
-                    throw new CustomException("Chỉ được giao công việc cho Nhân viên", HttpStatus.BAD_REQUEST,
                             "INVALID_ASSIGNEE");
                 }
 
@@ -186,13 +183,9 @@ public class TaskServiceImpl implements TaskService {
                 .orElseThrow(
                         () -> new ResourceNotFoundException("Assignee not found with id: " + request.getAssigneeId()));
 
-        if (!task.getProject().getMembers().contains(assignee)) {
+        boolean isMember = projectMemberRepository.existsByProjectIdAndUserId(task.getProject().getId(), assignee.getId());
+        if (!isMember) {
             throw new CustomException("Assignee is not a member of the project", HttpStatus.BAD_REQUEST,
-                    "INVALID_ASSIGNEE");
-        }
-
-        if (!"EMPLOYEE".equals(assignee.getRole().getName())) {
-            throw new CustomException("Chỉ được giao công việc cho Nhân viên", HttpStatus.BAD_REQUEST,
                     "INVALID_ASSIGNEE");
         }
 
@@ -223,8 +216,10 @@ public class TaskServiceImpl implements TaskService {
 
         boolean isCreator = task.getCreatedBy().getId().equals(user.getId());
         boolean isAssignee = task.getAssignee() != null && task.getAssignee().getId().equals(user.getId());
-        boolean isAdmin = "ADMIN".equals(user.getRole().getName());
-        boolean isLeader = "LEADER".equals(user.getRole().getName());
+        boolean isAdmin = Boolean.TRUE.equals(user.getIsAdmin());
+
+        Optional<ProjectMember> pmOpt = projectMemberRepository.findByProjectIdAndUserId(task.getProject().getId(), user.getId());
+        boolean isLeader = pmOpt.isPresent() && pmOpt.get().getRole() == ProjectRoleEnum.LEADER;
 
         if (isLeader && !isAssignee && request.getStatus() != TaskStatus.CANCELLED) {
             throw new UnauthorizedException(
@@ -274,8 +269,9 @@ public class TaskServiceImpl implements TaskService {
         User user = userRepository.findById(currentUser.getId())
                 .orElseThrow(() -> new ResourceNotFoundException("User not found with id: " + currentUser.getId()));
 
-        if (!"ADMIN".equals(user.getRole().getName())) {
-            if (!task.getProject().getMembers().contains(user)) {
+        if (!Boolean.TRUE.equals(user.getIsAdmin())) {
+            boolean isMember = projectMemberRepository.existsByProjectIdAndUserId(task.getProject().getId(), user.getId());
+            if (!isMember) {
                 throw new UnauthorizedException("You do not have permission to view this task");
             }
         }
@@ -292,24 +288,11 @@ public class TaskServiceImpl implements TaskService {
                 .orElseThrow(() -> new ResourceNotFoundException("User not found with id: " + currentUser.getId()));
 
         List<Task> tasks;
-        if (!"ADMIN".equals(user.getRole().getName())) {
-            // For non-admins, if they don't provide a projectId, they can only see tasks of
-            // projects they are in.
-            // But we'll simplify and say they MUST provide projectId or they just get
-            // assigned tasks?
-            // Let's get all tasks they have access to.
-            // It's easier if we filter based on members. For now, let's keep it simple.
+        if (!Boolean.TRUE.equals(user.getIsAdmin())) {
             if (projectId != null) {
-                Project p = projectRepository.findById(projectId).orElse(null);
-                if (p == null || !p.getMembers().contains(user)) {
+                Optional<ProjectMember> pmOpt = projectMemberRepository.findByProjectIdAndUserId(projectId, user.getId());
+                if (pmOpt.isEmpty() || pmOpt.get().getRole() != ProjectRoleEnum.LEADER) {
                     return List.of();
-                }
-            } else {
-                // If they ask for all tasks, only return their assigned tasks or tasks from
-                // their projects.
-                // We'll fallback to findByAssigneeId for employees.
-                if ("EMPLOYEE".equals(user.getRole().getName())) {
-                    assigneeId = user.getId();
                 }
             }
         }
@@ -330,9 +313,13 @@ public class TaskServiceImpl implements TaskService {
             tasks = taskRepository.findAll();
         }
 
-        if (!"ADMIN".equals(user.getRole().getName())) {
+        if (!Boolean.TRUE.equals(user.getIsAdmin())) {
             tasks = tasks.stream()
-                    .filter(t -> t.getProject() != null && t.getProject().getMembers().contains(user))
+                    .filter(t -> {
+                        if (t.getProject() == null) return false;
+                        Optional<ProjectMember> pmOpt = projectMemberRepository.findByProjectIdAndUserId(t.getProject().getId(), user.getId());
+                        return pmOpt.isPresent() && pmOpt.get().getRole() == ProjectRoleEnum.LEADER;
+                    })
                     .collect(Collectors.toList());
         }
 
@@ -373,16 +360,14 @@ public class TaskServiceImpl implements TaskService {
     }
 
     private void validateProjectPermission(User user, Project project) {
-        if ("ADMIN".equals(user.getRole().getName())) {
+        if (Boolean.TRUE.equals(user.getIsAdmin())) {
             return;
         }
 
-        if (!"LEADER".equals(user.getRole().getName())) {
-            throw new UnauthorizedException("Only Leaders or Admins can perform this action");
-        }
-
-        if (!project.getMembers().contains(user)) {
-            throw new UnauthorizedException("You do not have permission to manage tasks in this project");
+        Optional<ProjectMember> pmOpt = projectMemberRepository.findByProjectIdAndUserId(project.getId(), user.getId());
+        boolean hasProjectManagementPermission = pmOpt.isPresent() && pmOpt.get().getRole() == ProjectRoleEnum.LEADER;
+        if (!hasProjectManagementPermission) {
+            throw new UnauthorizedException("You do not have permission to perform this action in this project");
         }
     }
 

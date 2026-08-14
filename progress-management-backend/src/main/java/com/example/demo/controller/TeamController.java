@@ -31,13 +31,13 @@ public class TeamController {
     }
 
     @PostMapping
-    @PreAuthorize("hasAuthority('DEPARTMENT_CREATE') or hasRole('ADMIN')")
+    @PreAuthorize("hasAuthority('DEPARTMENT_CREATE')")
     public ResponseEntity<TeamResponse> createTeam(@Valid @RequestBody CreateTeamRequest request) {
         return ResponseEntity.status(HttpStatus.CREATED).body(teamService.createTeam(request));
     }
 
     @PutMapping("/{id}")
-    @PreAuthorize("hasAuthority('DEPARTMENT_UPDATE') or hasRole('ADMIN')")
+    @PreAuthorize("hasAuthority('DEPARTMENT_UPDATE')")
     public ResponseEntity<TeamResponse> updateTeam(
             @PathVariable Long id,
             @Valid @RequestBody UpdateTeamRequest request
@@ -46,7 +46,7 @@ public class TeamController {
     }
 
     @DeleteMapping("/{id}")
-    @PreAuthorize("hasAuthority('DEPARTMENT_DELETE') or hasRole('ADMIN')")
+    @PreAuthorize("hasAuthority('DEPARTMENT_DELETE')")
     public ResponseEntity<Void> deleteTeam(@PathVariable Long id) {
         teamService.deleteTeam(id);
         return ResponseEntity.noContent().build();

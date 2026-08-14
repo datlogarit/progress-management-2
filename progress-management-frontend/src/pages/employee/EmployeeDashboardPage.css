@@ -1,6 +1,7 @@
 .dashboard-banner.employee-theme {
   background: linear-gradient(135deg, #0284c7 0%, #0369a1 100%);
   box-shadow: 0 10px 20px -5px rgba(2, 132, 199, 0.3);
+  padding: 5px;
 }
 
 .notifications-sidebar {

@@ -1,17 +1,22 @@
 package com.example.demo.service.impl;
 
+import com.example.demo.constant.ProjectRoleEnum;
 import com.example.demo.dto.request.CreateProjectRequest;
+import com.example.demo.dto.request.ProjectMemberRequest;
 import com.example.demo.dto.request.UpdateProjectRequest;
+import com.example.demo.dto.response.ProjectMemberDto;
 import com.example.demo.dto.response.ProjectResponse;
-import com.example.demo.dto.response.UserSummaryDto;
 import com.example.demo.entity.Department;
 import com.example.demo.entity.Project;
+import com.example.demo.entity.ProjectMember;
 import com.example.demo.entity.User;
 import com.example.demo.exception.CustomException;
 import com.example.demo.exception.ResourceNotFoundException;
 import com.example.demo.repository.DepartmentRepository;
+import com.example.demo.repository.ProjectMemberRepository;
 import com.example.demo.repository.ProjectRepository;
 import com.example.demo.repository.UserRepository;
+import com.example.demo.security.UserPrincipal;
 import com.example.demo.service.ProjectService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -19,12 +24,8 @@ import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.util.HashSet;
-import java.util.List;
-import java.util.Set;
+import java.util.*;
 import java.util.stream.Collectors;
-
-import com.example.demo.security.UserPrincipal;
 
 @Slf4j
 @Service
@@ -34,6 +35,7 @@ public class ProjectServiceImpl implements ProjectService {
     private final ProjectRepository projectRepository;
     private final DepartmentRepository departmentRepository;
     private final UserRepository userRepository;
+    private final ProjectMemberRepository projectMemberRepository;
 
     @Override
     @Transactional(readOnly = true)
@@ -44,16 +46,20 @@ public class ProjectServiceImpl implements ProjectService {
                 .orElseThrow(() -> new ResourceNotFoundException("User not found with id: " + currentUser.getId()));
 
         List<Project> projects;
-        if (departmentId != null) {
-            projects = projectRepository.findByDepartmentId(departmentId);
+        if (Boolean.TRUE.equals(user.getIsAdmin())) {
+            if (departmentId != null) {
+                projects = projectRepository.findByDepartmentId(departmentId);
+            } else {
+                projects = projectRepository.findAll();
+            }
         } else {
-            projects = projectRepository.findAll();
-        }
-
-        if (!"ADMIN".equals(user.getRole().getName())) {
-            projects = projects.stream()
-                    .filter(p -> p.getMembers().stream().anyMatch(member -> member.getId().equals(user.getId())))
-                    .collect(Collectors.toList());
+            Long targetDeptId = (departmentId != null) ? departmentId
+                    : (user.getDepartment() != null ? user.getDepartment().getId() : null);
+            if (targetDeptId != null) {
+                projects = projectRepository.findByDepartmentId(targetDeptId);
+            } else {
+                projects = projectRepository.findByUserId(user.getId());
+            }
         }
 
         return projects.stream().map(this::mapToResponse).collect(Collectors.toList());
@@ -70,9 +76,9 @@ public class ProjectServiceImpl implements ProjectService {
             User user = userRepository.findById(currentUser.getId())
                     .orElseThrow(() -> new ResourceNotFoundException("User not found with id: " + currentUser.getId()));
 
-            if (!"ADMIN".equals(user.getRole().getName())) {
-                boolean isMember = project.getMembers().stream()
-                        .anyMatch(member -> member.getId().equals(user.getId()));
+            if (!Boolean.TRUE.equals(user.getIsAdmin())) {
+                boolean isMember = project.getProjectMembers().stream()
+                        .anyMatch(pm -> pm.getUser().getId().equals(user.getId()));
                 if (!isMember) {
                     throw new CustomException("You do not have permission to view this project", HttpStatus.FORBIDDEN,
                             "ACCESS_DENIED");
@@ -92,26 +98,17 @@ public class ProjectServiceImpl implements ProjectService {
                 .orElseThrow(() -> new ResourceNotFoundException(
                         "Department not found with id: " + request.getDepartmentId()));
 
-        Set<User> members = new HashSet<>();
-        if (request.getMemberIds() != null && !request.getMemberIds().isEmpty()) {
-            List<User> users = userRepository.findAllById(request.getMemberIds());
-            for (User user : users) {
-                if (user.getDepartment() == null || !user.getDepartment().getId().equals(department.getId())) {
-                    throw new CustomException(
-                            "User " + user.getUsername() + " does not belong to the selected department",
-                            HttpStatus.BAD_REQUEST, "INVALID_MEMBER");
-                }
-            }
-            members.addAll(users);
-        }
-
         Project project = Project.builder()
                 .name(request.getName().trim())
                 .description(request.getDescription())
                 .department(department)
                 .status("ACTIVE")
-                .members(members)
+                .projectMembers(new HashSet<>())
                 .build();
+
+        Set<ProjectMember> members = buildProjectMembers(project, request.getProjectMembers(), request.getMemberIds(),
+                request.getManagerIds(), department);
+        project.setProjectMembers(members);
 
         Project saved = projectRepository.save(project);
         return mapToResponse(saved);
@@ -131,17 +128,14 @@ public class ProjectServiceImpl implements ProjectService {
             project.setStatus(request.getStatus());
         }
 
-        if (request.getMemberIds() != null) {
-            List<User> users = userRepository.findAllById(request.getMemberIds());
-            for (User user : users) {
-                if (user.getDepartment() == null
-                        || !user.getDepartment().getId().equals(project.getDepartment().getId())) {
-                    throw new CustomException(
-                            "User " + user.getUsername() + " does not belong to the project's department",
-                            HttpStatus.BAD_REQUEST, "INVALID_MEMBER");
-                }
-            }
-            project.setMembers(new HashSet<>(users));
+        if (request.getProjectMembers() != null || request.getMemberIds() != null || request.getManagerIds() != null) {
+            project.getProjectMembers().clear();
+            Set<ProjectMember> updatedMembers = buildProjectMembers(project, request.getProjectMembers(),
+                    request.getMemberIds(), request.getManagerIds(), project.getDepartment());
+            projectMemberRepository.deleteByProjectId(id);
+            projectMemberRepository.flush();
+            project.getProjectMembers().clear();
+            project.getProjectMembers().addAll(updatedMembers);
         }
 
         Project updated = projectRepository.save(project);
@@ -157,22 +151,72 @@ public class ProjectServiceImpl implements ProjectService {
         projectRepository.delete(project);
     }
 
+    private Set<ProjectMember> buildProjectMembers(Project project, List<ProjectMemberRequest> projectMemberRequests,
+            List<Long> memberIds, List<Long> managerIds, Department department) {
+        Map<Long, ProjectRoleEnum> userRoleMap = new HashMap<>();
+
+        if (projectMemberRequests != null && !projectMemberRequests.isEmpty()) {
+            for (ProjectMemberRequest pmr : projectMemberRequests) {
+                userRoleMap.put(pmr.getUserId(), pmr.getRole() != null ? pmr.getRole() : ProjectRoleEnum.EMPLOYEE);
+            }
+        }
+
+        if (managerIds != null) {
+            for (Long mId : managerIds) {
+                userRoleMap.put(mId, ProjectRoleEnum.LEADER);
+            }
+        }
+
+        if (memberIds != null) {
+            for (Long mId : memberIds) {
+                userRoleMap.putIfAbsent(mId, ProjectRoleEnum.EMPLOYEE);
+            }
+        }
+
+        if (userRoleMap.isEmpty()) {
+            return new HashSet<>();
+        }
+
+        List<User> users = userRepository.findAllById(userRoleMap.keySet());
+        Set<ProjectMember> projectMembers = new HashSet<>();
+
+        for (User user : users) {
+            if (user.getDepartment() == null || !user.getDepartment().getId().equals(department.getId())) {
+                throw new CustomException(
+                        "User " + user.getUsername() + " does not belong to department " + department.getName(),
+                        HttpStatus.BAD_REQUEST, "INVALID_MEMBER");
+            }
+            ProjectMember member = ProjectMember.builder()
+                    .project(project)
+                    .user(user)
+                    .role(userRoleMap.get(user.getId()))
+                    .build();
+            projectMembers.add(member);
+        }
+
+        return projectMembers;
+    }
+
     private ProjectResponse mapToResponse(Project project) {
-        List<UserSummaryDto> memberDtos = project.getMembers().stream()
-                .map(user -> UserSummaryDto.builder()
-                        .id(user.getId())
-                        .username(user.getUsername())
-                        .fullName(user.getFullName())
-                        .email(user.getEmail())
-                        .build())
-                .collect(Collectors.toList());
+        List<ProjectMemberDto> memberDtos = (project.getProjectMembers() != null)
+                ? project.getProjectMembers().stream()
+                        .filter(pm -> pm.getUser() != null)
+                        .map(pm -> ProjectMemberDto.builder()
+                                .id(pm.getUser().getId())
+                                .username(pm.getUser().getUsername())
+                                .fullName(pm.getUser().getFullName())
+                                .email(pm.getUser().getEmail())
+                                .projectRole(pm.getRole())
+                                .build())
+                        .collect(Collectors.toList())
+                : List.of();
 
         return ProjectResponse.builder()
                 .id(project.getId())
                 .name(project.getName())
                 .description(project.getDescription())
-                .departmentId(project.getDepartment().getId())
-                .departmentName(project.getDepartment().getName())
+                .departmentId(project.getDepartment() != null ? project.getDepartment().getId() : null)
+                .departmentName(project.getDepartment() != null ? project.getDepartment().getName() : null)
                 .status(project.getStatus())
                 .members(memberDtos)
                 .createdAt(project.getCreatedAt())

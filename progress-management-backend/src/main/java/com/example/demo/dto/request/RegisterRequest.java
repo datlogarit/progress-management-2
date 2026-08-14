@@ -31,8 +31,9 @@ public class RegisterRequest {
     @NotBlank(message = "Full name is required")
     private String fullName;
 
-    @NotNull(message = "Role is required")
     private RoleEnum role;
+
+    private Boolean isAdmin;
 
     private Long departmentId;
 }

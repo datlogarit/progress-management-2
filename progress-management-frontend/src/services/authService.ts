@@ -11,6 +11,7 @@ export interface UserDTO {
   email: string;
   fullName: string;
   role: 'ADMIN' | 'LEADER' | 'EMPLOYEE' | string;
+  isAdmin?: boolean;
   permissions: string[];
   departmentId: number | null;
   departmentName: string | null;
