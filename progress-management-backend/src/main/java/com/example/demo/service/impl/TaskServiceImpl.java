@@ -35,6 +35,9 @@ import java.util.List;
 import java.util.Optional;
 import java.util.stream.Collectors;
 
+/**
+ * Implementation of {@link TaskService} managing task operations, status transitions, and notification triggers.
+ */
 @Slf4j
 @Service
 @RequiredArgsConstructor
@@ -46,6 +49,9 @@ public class TaskServiceImpl implements TaskService {
     private final ProjectMemberRepository projectMemberRepository;
     private final NotificationService notificationService;
 
+    /**
+     * {@inheritDoc}
+     */
     @Override
     @Transactional
     public TaskResponse createTask(CreateTaskRequest request, UserPrincipal currentUser) {
@@ -108,6 +114,9 @@ public class TaskServiceImpl implements TaskService {
         return mapToTaskResponse(savedTask);
     }
 
+    /**
+     * {@inheritDoc}
+     */
     @Override
     @Transactional
     public TaskResponse updateTask(Long id, UpdateTaskRequest request, UserPrincipal currentUser) {
@@ -129,10 +138,6 @@ public class TaskServiceImpl implements TaskService {
         task.setTitle(request.getTitle().trim());
         task.setDescription(request.getDescription() != null ? request.getDescription().trim() : null);
 
-        if (request.getStatus() != null) {
-            task.setStatus(request.getStatus());
-        }
-
         if (request.getPriority() != null) {
             task.setPriority(request.getPriority());
         }
@@ -145,7 +150,8 @@ public class TaskServiceImpl implements TaskService {
                 User newAssignee = userRepository.findById(request.getAssigneeId())
                         .orElseThrow(() -> new ResourceNotFoundException("Assignee not found"));
 
-                boolean isMember = projectMemberRepository.existsByProjectIdAndUserId(task.getProject().getId(), newAssignee.getId());
+                boolean isMember = projectMemberRepository.existsByProjectIdAndUserId(task.getProject().getId(),
+                        newAssignee.getId());
                 if (!isMember) {
                     throw new CustomException("Assignee is not a member of the project", HttpStatus.BAD_REQUEST,
                             "INVALID_ASSIGNEE");
@@ -165,6 +171,9 @@ public class TaskServiceImpl implements TaskService {
         return mapToTaskResponse(updatedTask);
     }
 
+    /**
+     * {@inheritDoc}
+     */
     @Override
     @Transactional
     public TaskResponse assignTask(Long id, AssignTaskRequest request, UserPrincipal currentUser) {
@@ -183,7 +192,8 @@ public class TaskServiceImpl implements TaskService {
                 .orElseThrow(
                         () -> new ResourceNotFoundException("Assignee not found with id: " + request.getAssigneeId()));
 
-        boolean isMember = projectMemberRepository.existsByProjectIdAndUserId(task.getProject().getId(), assignee.getId());
+        boolean isMember = projectMemberRepository.existsByProjectIdAndUserId(task.getProject().getId(),
+                assignee.getId());
         if (!isMember) {
             throw new CustomException("Assignee is not a member of the project", HttpStatus.BAD_REQUEST,
                     "INVALID_ASSIGNEE");
@@ -202,6 +212,9 @@ public class TaskServiceImpl implements TaskService {
         return mapToTaskResponse(updatedTask);
     }
 
+    /**
+     * {@inheritDoc}
+     */
     @Override
     @Transactional
     public TaskResponse updateTaskStatus(Long id, UpdateTaskStatusRequest request, UserPrincipal currentUser) {
@@ -218,16 +231,8 @@ public class TaskServiceImpl implements TaskService {
         boolean isAssignee = task.getAssignee() != null && task.getAssignee().getId().equals(user.getId());
         boolean isAdmin = Boolean.TRUE.equals(user.getIsAdmin());
 
-        Optional<ProjectMember> pmOpt = projectMemberRepository.findByProjectIdAndUserId(task.getProject().getId(), user.getId());
-        boolean isLeader = pmOpt.isPresent() && pmOpt.get().getRole() == ProjectRoleEnum.LEADER;
-
-        if (isLeader && !isAssignee && request.getStatus() != TaskStatus.CANCELLED) {
-            throw new UnauthorizedException(
-                    "Trưởng dự án chỉ có quyền hủy công việc, không được chuyển trạng thái khác.");
-        }
-
-        if (!isAssignee && !isAdmin && !(isLeader && request.getStatus() == TaskStatus.CANCELLED)) {
-            throw new UnauthorizedException("Bạn không có quyền cập nhật trạng thái công việc này");
+        if (!isAssignee && !isAdmin) {
+            throw new UnauthorizedException("Chỉ có người thực hiện (assignee) mới có quyền cập nhật trạng thái công việc");
         }
 
         TaskStatus oldStatus = task.getStatus();
@@ -258,6 +263,9 @@ public class TaskServiceImpl implements TaskService {
         return mapToTaskResponse(updatedTask);
     }
 
+    /**
+     * {@inheritDoc}
+     */
     @Override
     @Transactional(readOnly = true)
     public TaskResponse getTaskById(Long id, UserPrincipal currentUser) {
@@ -270,7 +278,8 @@ public class TaskServiceImpl implements TaskService {
                 .orElseThrow(() -> new ResourceNotFoundException("User not found with id: " + currentUser.getId()));
 
         if (!Boolean.TRUE.equals(user.getIsAdmin())) {
-            boolean isMember = projectMemberRepository.existsByProjectIdAndUserId(task.getProject().getId(), user.getId());
+            boolean isMember = projectMemberRepository.existsByProjectIdAndUserId(task.getProject().getId(),
+                    user.getId());
             if (!isMember) {
                 throw new UnauthorizedException("You do not have permission to view this task");
             }
@@ -279,6 +288,9 @@ public class TaskServiceImpl implements TaskService {
         return mapToTaskResponse(task);
     }
 
+    /**
+     * {@inheritDoc}
+     */
     @Override
     @Transactional(readOnly = true)
     public List<TaskResponse> getTasks(Long projectId, Long assigneeId, TaskStatus status, UserPrincipal currentUser) {
@@ -290,7 +302,8 @@ public class TaskServiceImpl implements TaskService {
         List<Task> tasks;
         if (!Boolean.TRUE.equals(user.getIsAdmin())) {
             if (projectId != null) {
-                Optional<ProjectMember> pmOpt = projectMemberRepository.findByProjectIdAndUserId(projectId, user.getId());
+                Optional<ProjectMember> pmOpt = projectMemberRepository.findByProjectIdAndUserId(projectId,
+                        user.getId());
                 if (pmOpt.isEmpty() || pmOpt.get().getRole() != ProjectRoleEnum.LEADER) {
                     return List.of();
                 }
@@ -316,8 +329,10 @@ public class TaskServiceImpl implements TaskService {
         if (!Boolean.TRUE.equals(user.getIsAdmin())) {
             tasks = tasks.stream()
                     .filter(t -> {
-                        if (t.getProject() == null) return false;
-                        Optional<ProjectMember> pmOpt = projectMemberRepository.findByProjectIdAndUserId(t.getProject().getId(), user.getId());
+                        if (t.getProject() == null)
+                            return false;
+                        Optional<ProjectMember> pmOpt = projectMemberRepository
+                                .findByProjectIdAndUserId(t.getProject().getId(), user.getId());
                         return pmOpt.isPresent() && pmOpt.get().getRole() == ProjectRoleEnum.LEADER;
                     })
                     .collect(Collectors.toList());
@@ -328,6 +343,9 @@ public class TaskServiceImpl implements TaskService {
                 .collect(Collectors.toList());
     }
 
+    /**
+     * {@inheritDoc}
+     */
     @Override
     @Transactional(readOnly = true)
     public List<TaskResponse> getMyTasks(TaskStatus status, UserPrincipal currentUser) {
@@ -343,6 +361,9 @@ public class TaskServiceImpl implements TaskService {
                 .collect(Collectors.toList());
     }
 
+    /**
+     * {@inheritDoc}
+     */
     @Override
     @Transactional
     public void deleteTask(Long id, UserPrincipal currentUser) {
@@ -359,6 +380,12 @@ public class TaskServiceImpl implements TaskService {
         taskRepository.delete(task);
     }
 
+    /**
+     * Validates that the user has project leadership or admin permissions.
+     *
+     * @param user the user to validate
+     * @param project the project instance
+     */
     private void validateProjectPermission(User user, Project project) {
         if (Boolean.TRUE.equals(user.getIsAdmin())) {
             return;
@@ -371,6 +398,12 @@ public class TaskServiceImpl implements TaskService {
         }
     }
 
+    /**
+     * Maps a {@link Task} entity to a {@link TaskResponse} DTO.
+     *
+     * @param task the task entity
+     * @return mapped task response DTO
+     */
     private TaskResponse mapToTaskResponse(Task task) {
         UserSummaryDto creatorDto = UserSummaryDto.builder()
                 .id(task.getCreatedBy().getId())

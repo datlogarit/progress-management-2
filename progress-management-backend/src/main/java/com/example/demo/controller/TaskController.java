@@ -87,7 +87,7 @@ public class TaskController {
     }
 
     @PatchMapping("/{id}/status")
-    @Authorize(permission = { PermissionEnum.TASK_UPDATE }, scope = ScopeType.TASK, scopeParam = "id")
+    @Authorize(permission = { PermissionEnum.TASK_UPDATE_STATUS }, scope = ScopeType.TASK, scopeParam = "id")
     public ResponseEntity<TaskResponse> updateTaskStatus(
             @PathVariable Long id,
             @Valid @RequestBody UpdateTaskStatusRequest request,

@@ -53,69 +53,90 @@ public class AuthorizationAspect {
         }
 
         PermissionEnum[] requiredPermissions = authorize.permission();
-        if (requiredPermissions.length > 0) {
-            boolean hasAuthorityPermission = false;
-            for (PermissionEnum perm : requiredPermissions) {
-                if (currentUser.getAuthorities().stream().anyMatch(a -> a.getAuthority().equals(perm.name()))) {
-                    hasAuthorityPermission = true;
-                    break;
-                }
+        if (requiredPermissions.length == 0) {
+            return;
+        }
+
+        // 1. Project Management Operations (create, update, delete project) -> ONLY System Admin can perform!
+        for (PermissionEnum perm : requiredPermissions) {
+            if (perm == PermissionEnum.PROJECT_CREATE || perm == PermissionEnum.PROJECT_UPDATE || perm == PermissionEnum.PROJECT_DELETE) {
+                throw new AccessDeniedException("Chỉ có Admin hệ thống mới có quyền thêm, sửa, xóa dự án");
             }
+        }
 
-            // Check Scope & Project Permissions
-            if (authorize.scope() != ScopeType.NONE) {
-                String scopeParam = authorize.scopeParam();
-                Long scopeId = extractScopeId(joinPoint, scopeParam);
+        // 2. Global Authority Check
+        boolean hasAuthorityPermission = false;
+        for (PermissionEnum perm : requiredPermissions) {
+            if (currentUser.getAuthorities().stream().anyMatch(a -> a.getAuthority().equals(perm.name()))) {
+                hasAuthorityPermission = true;
+                break;
+            }
+        }
 
-                if (scopeId != null) {
-                    Long targetProjectId = null;
-                    if (authorize.scope() == ScopeType.PROJECT) {
-                        targetProjectId = scopeId;
-                        RequestContext.setVerifiedProjectId(targetProjectId.toString());
-                    } else if (authorize.scope() == ScopeType.TASK) {
-                        Task task = taskRepository.findById(scopeId)
-                                .orElseThrow(() -> new AccessDeniedException("Task not found"));
-                        if (task.getProject() != null) {
-                            targetProjectId = task.getProject().getId();
-                        }
-                        RequestContext.setVerifiedTaskId(scopeId.toString());
+        // 3. Scope Checks & Project/Task Level Permissions
+        if (authorize.scope() != ScopeType.NONE) {
+            String scopeParam = authorize.scopeParam();
+            Long scopeId = extractScopeId(joinPoint, scopeParam);
+
+            if (scopeId != null) {
+                Long targetProjectId = null;
+                boolean isTaskScope = (authorize.scope() == ScopeType.TASK);
+                boolean isAssignee = false;
+
+                if (authorize.scope() == ScopeType.PROJECT) {
+                    targetProjectId = scopeId;
+                    RequestContext.setVerifiedProjectId(targetProjectId.toString());
+                } else if (isTaskScope) {
+                    Task task = taskRepository.findById(scopeId)
+                            .orElseThrow(() -> new AccessDeniedException("Task not found"));
+                    if (task.getProject() != null) {
+                        targetProjectId = task.getProject().getId();
+                    }
+                    if (task.getAssignee() != null && task.getAssignee().getId().equals(user.getId())) {
+                        isAssignee = true;
+                    }
+                    RequestContext.setVerifiedTaskId(scopeId.toString());
+                }
+
+                if (targetProjectId != null) {
+                    var memberOpt = projectMemberRepository.findByProjectIdAndUserId(targetProjectId, user.getId());
+                    boolean isSameDepartmentUser = user.getDepartment() != null
+                            && projectRepository.findById(targetProjectId)
+                                    .map(p -> p.getDepartment() != null && p.getDepartment().getId().equals(user.getDepartment().getId()))
+                                    .orElse(false);
+
+                    if (memberOpt.isEmpty() && !isSameDepartmentUser) {
+                        throw new AccessDeniedException("User is not a member of this project");
                     }
 
-                    if (targetProjectId != null) {
-                        var memberOpt = projectMemberRepository.findByProjectIdAndUserId(targetProjectId, user.getId());
-                        boolean isSameDepartmentUser = user.getDepartment() != null
-                                && projectRepository.findById(targetProjectId)
-                                        .map(p -> p.getDepartment() != null && p.getDepartment().getId().equals(user.getDepartment().getId()))
-                                        .orElse(false);
+                    var projectRole = memberOpt.isPresent() ? memberOpt.get().getRole() : null;
+                    boolean isLeader = (projectRole == com.example.demo.constant.ProjectRoleEnum.LEADER);
 
-                        if (memberOpt.isEmpty() && !isSameDepartmentUser) {
-                            throw new AccessDeniedException("User is not a member of this project");
-                        }
-
-                        var projectRole = memberOpt.isPresent() ? memberOpt.get().getRole() : null;
-
-                        boolean hasProjectPermission = false;
-                        if (projectRole == com.example.demo.constant.ProjectRoleEnum.LEADER) {
-                            hasProjectPermission = true;
-                        } else if (projectRole == com.example.demo.constant.ProjectRoleEnum.EMPLOYEE || isSameDepartmentUser) {
-                            boolean onlyRead = true;
-                            for (PermissionEnum perm : requiredPermissions) {
-                                if (perm != PermissionEnum.PROJECT_READ && perm != PermissionEnum.TASK_READ) {
-                                    onlyRead = false;
-                                    break;
-                                }
+                    for (PermissionEnum perm : requiredPermissions) {
+                        if (perm == PermissionEnum.TASK_UPDATE_STATUS) {
+                            // Rule: Nguoi do phai la thanh vien thuc hien (assignee) moi duoc update status cua task, ke ca leader cung khong duoc update status
+                            if (!isTaskScope || !isAssignee) {
+                                throw new AccessDeniedException("Chỉ có người thực hiện (assignee) mới có quyền cập nhật trạng thái của task");
                             }
-                            hasProjectPermission = onlyRead;
-                        }
-
-                        if (!hasProjectPermission) {
-                            throw new AccessDeniedException("User does not have required permission for this action");
+                        } else if (perm == PermissionEnum.TASK_UPDATE || perm == PermissionEnum.TASK_CREATE || perm == PermissionEnum.TASK_DELETE || perm == PermissionEnum.TASK_ASSIGN) {
+                            // Rule: Chi co leader cua chinh du an do moi thay doi duoc cac thong tin khac cua task
+                            if (!isLeader) {
+                                throw new AccessDeniedException("Chỉ có Trưởng dự án (Leader) của dự án này mới có quyền thay đổi thông tin/tạo/xóa/phân công công việc");
+                            }
+                        } else if (perm == PermissionEnum.PROJECT_READ || perm == PermissionEnum.TASK_READ) {
+                            // Read permissions allowed for project members or same department users
+                        } else {
+                            if (!isLeader) {
+                                throw new AccessDeniedException("User does not have required permission for this action");
+                            }
                         }
                     }
                 }
             } else if (!hasAuthorityPermission) {
                 throw new AccessDeniedException("User does not have required permission for this action");
             }
+        } else if (!hasAuthorityPermission) {
+            throw new AccessDeniedException("User does not have required permission for this action");
         }
     }
 

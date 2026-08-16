@@ -1,4 +1,6 @@
 import React, { useEffect, useState } from 'react';
+import { useSearchParams, useNavigate } from 'react-router-dom';
+import toast from 'react-hot-toast';
 import { AdminLayout } from './AdminLayout';
 import { Modal } from '../../components/Modal';
 import { 
@@ -9,20 +11,27 @@ import {
 } from '../../services/departmentService';
 import type { DepartmentDTO } from '../../services/departmentService';
 import { getAllTeamsApi, type TeamDTO } from '../../services/teamService.ts';
-import { Building2, Plus, Edit3, Trash2, Users, Calendar, UserCheck } from 'lucide-react';
+import { getProjectsApi, type ProjectDTO } from '../../services/projectService.ts';
+import { Building2, Plus, Edit3, Trash2, Users, Calendar, UserCheck, Search, FolderKanban, ExternalLink } from 'lucide-react';
 import './DepartmentManagementPage.css';
 
 export function DepartmentManagementPage() {
+  const [searchParams] = useSearchParams();
+  const initialSearch = searchParams.get('search') || '';
+  const navigate = useNavigate();
+
   const [departments, setDepartments] = useState<DepartmentDTO[]>([]);
   const [teams, setTeams] = useState<TeamDTO[]>([]);
+  const [projects, setProjects] = useState<ProjectDTO[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
-  const [error, setError] = useState<string | null>(null);
-  const [successMsg, setSuccessMsg] = useState<string | null>(null);
+  const [searchQuery, setSearchQuery] = useState<string>(initialSearch);
 
   // Modals
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+  const [isProjectModalOpen, setIsProjectModalOpen] = useState(false);
   const [selectedDept, setSelectedDept] = useState<DepartmentDTO | null>(null);
+  const [selectedDetailDept, setSelectedDetailDept] = useState<DepartmentDTO | null>(null);
 
   // Form State
   const [deptForm, setDeptForm] = useState<{
@@ -38,16 +47,17 @@ export function DepartmentManagementPage() {
   const fetchData = async () => {
     try {
       setLoading(true);
-      setError(null);
-      const [deptData, teamData] = await Promise.all([
+      const [deptData, teamData, projData] = await Promise.all([
         getAllDepartmentsApi(),
         getAllTeamsApi(),
+        getProjectsApi(),
       ]);
       setDepartments(deptData);
       setTeams(teamData);
+      setProjects(projData);
     } catch (err: unknown) {
-      if (err instanceof Error) setError(err.message);
-      else setError('Không thể tải dữ liệu phòng ban');
+      if (err instanceof Error) toast.error(err.message);
+      else toast.error('Không thể tải dữ liệu phòng ban');
     } finally {
       setLoading(false);
     }
@@ -57,15 +67,9 @@ export function DepartmentManagementPage() {
     fetchData();
   }, []);
 
-  const showSuccess = (msg: string) => {
-    setSuccessMsg(msg);
-    setTimeout(() => setSuccessMsg(null), 4000);
-  };
-
   const handleCreateDept = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
-      setError(null);
       await createDepartmentApi({
         name: deptForm.name,
         description: deptForm.description,
@@ -73,10 +77,10 @@ export function DepartmentManagementPage() {
       });
       setIsCreateModalOpen(false);
       setDeptForm({ name: '', description: '', teamId: '' });
-      showSuccess('Tạo phòng ban mới thành công!');
+      toast.success('Tạo phòng ban mới thành công!');
       fetchData();
     } catch (err: unknown) {
-      if (err instanceof Error) setError(err.message);
+      if (err instanceof Error) toast.error(err.message);
     }
   };
 
@@ -94,17 +98,16 @@ export function DepartmentManagementPage() {
     e.preventDefault();
     if (!selectedDept) return;
     try {
-      setError(null);
       await updateDepartmentApi(selectedDept.id, {
         name: deptForm.name,
         description: deptForm.description,
         teamId: deptForm.teamId === '' ? null : Number(deptForm.teamId),
       });
       setIsEditModalOpen(false);
-      showSuccess(`Cập nhật phòng ban ${selectedDept.name} thành công!`);
+      toast.success(`Cập nhật phòng ban ${selectedDept.name} thành công!`);
       fetchData();
     } catch (err: unknown) {
-      if (err instanceof Error) setError(err.message);
+      if (err instanceof Error) toast.error(err.message);
     }
   };
 
@@ -116,27 +119,41 @@ export function DepartmentManagementPage() {
     if (!window.confirm(confirmMessage)) return;
 
     try {
-      setError(null);
       await deleteDepartmentApi(d.id);
-      showSuccess(`Đã xóa phòng ban ${d.name}!`);
+      toast.success(`Đã xóa phòng ban ${d.name}!`);
       fetchData();
     } catch (err: unknown) {
-      if (err instanceof Error) setError(err.message);
+      if (err instanceof Error) toast.error(err.message);
     }
   };
+
+  const filteredDepartments = departments.filter((d) =>
+    d.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+    (d.description && d.description.toLowerCase().includes(searchQuery.toLowerCase())) ||
+    (d.teamName && d.teamName.toLowerCase().includes(searchQuery.toLowerCase()))
+  );
 
   return (
     <AdminLayout title="Quản lý Phòng ban">
       <div className="page-container">
-        {/* Banner Alert Messages */}
-        {successMsg && <div className="alert-banner success">{successMsg}</div>}
-        {error && <div className="alert-banner danger">{error}</div>}
 
         {/* Toolbar Header */}
         <div className="toolbar-panel">
-          <div className="dept-summary-count">
-            <Building2 size={20} className="text-accent" />
-            <span>Danh sách các Phòng Ban trong Tổ chức ({departments.length})</span>
+          <div className="dept-summary-count" style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <Building2 size={20} className="text-accent" />
+              <span>Danh sách các Phòng Ban ({filteredDepartments.length})</span>
+            </div>
+
+            <div className="search-box">
+              <Search size={16} className="search-icon" />
+              <input
+                type="text"
+                placeholder="Tìm kiếm phòng ban..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+              />
+            </div>
           </div>
 
           <button className="btn-primary" onClick={() => {
@@ -153,55 +170,71 @@ export function DepartmentManagementPage() {
           <div className="loading-state">Đang tải danh sách phòng ban...</div>
         ) : (
           <div className="dept-grid">
-            {departments.map((d) => (
-              <div key={d.id} className="dept-card">
-                <div className="dept-card-header">
-                  <div className="dept-icon">
-                    <Building2 size={22} />
+            {filteredDepartments.map((d) => {
+              const deptProjects = projects.filter((p) => p.departmentId === d.id);
+              return (
+                <div key={d.id} className="dept-card">
+                  <div className="dept-card-header">
+                    <div className="dept-icon">
+                      <Building2 size={22} />
+                    </div>
+                    <div className="dept-card-actions">
+                      <button
+                        className="btn-icon edit"
+                        onClick={() => handleOpenEditModal(d)}
+                        title="Chỉnh sửa phòng ban"
+                      >
+                        <Edit3 size={16} />
+                      </button>
+                      <button
+                        className="btn-icon delete"
+                        onClick={() => handleDeleteDept(d)}
+                        title="Xóa phòng ban"
+                      >
+                        <Trash2 size={16} />
+                      </button>
+                    </div>
                   </div>
-                  <div className="dept-card-actions">
-                    <button
-                      className="btn-icon edit"
-                      onClick={() => handleOpenEditModal(d)}
-                      title="Chỉnh sửa phòng ban"
-                    >
-                      <Edit3 size={16} />
-                    </button>
-                    <button
-                      className="btn-icon delete"
-                      onClick={() => handleDeleteDept(d)}
-                      title="Xóa phòng ban"
-                    >
-                      <Trash2 size={16} />
-                    </button>
-                  </div>
-                </div>
 
-                <div className="dept-card-body">
-                  <div className="dept-header-title">
-                    <h3 className="dept-title">{d.name}</h3>
-                    <span className={`dept-team-badge ${d.teamName ? 'active' : 'none'}`}>
-                      <UserCheck size={12} />
-                      {d.teamName ? `Thuộc: ${d.teamName}` : 'Chưa phân Đội nhóm'}
-                    </span>
-                  </div>
-                  <p className="dept-desc">
-                    {d.description || 'Chưa có mô tả chi tiết cho phòng ban này.'}
-                  </p>
-                </div>
+                  <div className="dept-card-body">
+                    <div className="dept-header-title">
+                      <h3 className="dept-title">{d.name}</h3>
+                      <span className={`dept-team-badge ${d.teamName ? 'active' : 'none'}`}>
+                        <UserCheck size={12} />
+                        {d.teamName ? `Thuộc: ${d.teamName}` : 'Chưa phân Đội nhóm'}
+                      </span>
+                    </div>
+                    <p className="dept-desc">
+                      {d.description || 'Chưa có mô tả chi tiết cho phòng ban này.'}
+                    </p>
 
-                <div className="dept-card-footer">
-                  <div className="dept-stat">
-                    <Users size={14} />
-                    <span>{d.userCount} nhân sự</span>
+                    <div style={{ marginTop: '12px' }}>
+                      <button
+                        className="btn-projects-link"
+                        onClick={() => {
+                          setSelectedDetailDept(d);
+                          setIsProjectModalOpen(true);
+                        }}
+                      >
+                        <FolderKanban size={14} />
+                        <span>Xem {deptProjects.length} dự án trong phòng ban</span>
+                      </button>
+                    </div>
                   </div>
-                  <div className="dept-stat">
-                    <Calendar size={14} />
-                    <span>{new Date(d.createdAt).toLocaleDateString('vi-VN')}</span>
+
+                  <div className="dept-card-footer">
+                    <div className="dept-stat">
+                      <Users size={14} />
+                      <span>{d.userCount} nhân sự</span>
+                    </div>
+                    <div className="dept-stat">
+                      <Calendar size={14} />
+                      <span>{new Date(d.createdAt).toLocaleDateString('vi-VN')}</span>
+                    </div>
                   </div>
                 </div>
-              </div>
-            ))}
+              );
+            })}
 
             {departments.length === 0 && (
               <div className="empty-dept-card">
@@ -325,6 +358,52 @@ export function DepartmentManagementPage() {
             </button>
           </div>
         </form>
+      </Modal>
+      {/* PROJECTS IN DEPARTMENT MODAL */}
+      <Modal
+        isOpen={isProjectModalOpen}
+        onClose={() => setIsProjectModalOpen(false)}
+        title={`Các dự án thuộc phòng ban: ${selectedDetailDept?.name}`}
+      >
+        <div className="projects-list">
+          {projects
+            .filter((p) => p.departmentId === selectedDetailDept?.id)
+            .map((p) => (
+              <div
+                key={p.id}
+                className="project-item clickable"
+                onClick={() => navigate(`/admin/projects?search=${encodeURIComponent(p.name)}`)}
+                title={`Bấm để tới trang Quản lý dự án ${p.name}`}
+              >
+                <div className="project-icon">
+                  <FolderKanban size={20} />
+                </div>
+                <div className="project-info">
+                  <div className="project-name">{p.name}</div>
+                  <div className="project-desc">{p.description || 'Chưa có mô tả'}</div>
+                </div>
+                <button
+                  className="project-members-btn"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    navigate(`/admin/users?projectId=${p.id}`);
+                  }}
+                  title="Bấm để tới trang Quản lý thành viên trong dự án này"
+                >
+                  <Users size={13} />
+                  <span>{p.members ? p.members.length : 0} thành viên</span>
+                </button>
+                <div className="project-link-icon">
+                  <ExternalLink size={16} />
+                </div>
+              </div>
+            ))}
+          {projects.filter((p) => p.departmentId === selectedDetailDept?.id).length === 0 && (
+            <div className="empty-state-text" style={{ padding: '24px', textAlign: 'center', color: '#64748b' }}>
+              Chưa có dự án nào thuộc phòng ban này.
+            </div>
+          )}
+        </div>
       </Modal>
     </AdminLayout>
   );

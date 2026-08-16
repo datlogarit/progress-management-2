@@ -8,6 +8,7 @@ import com.example.demo.exception.ResourceNotFoundException;
 import com.example.demo.exception.UnauthorizedException;
 import com.example.demo.repository.NotificationRepository;
 import com.example.demo.service.NotificationService;
+import com.example.demo.service.SseEmitterService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -16,13 +17,20 @@ import org.springframework.transaction.annotation.Transactional;
 import java.util.List;
 import java.util.stream.Collectors;
 
+/**
+ * Implementation of {@link NotificationService} handling persistent storage and SSE dispatch of notifications.
+ */
 @Slf4j
 @Service
 @RequiredArgsConstructor
 public class NotificationServiceImpl implements NotificationService {
 
     private final NotificationRepository notificationRepository;
+    private final SseEmitterService sseEmitterService;
 
+    /**
+     * {@inheritDoc}
+     */
     @Override
     @Transactional
     public void sendNotification(User recipient, String message, NotificationType type, Long taskId, Long commentId) {
@@ -47,9 +55,15 @@ public class NotificationServiceImpl implements NotificationService {
                 .isRead(false)
                 .build();
 
-        notificationRepository.save(notification);
+        notification = notificationRepository.save(notification);
+        
+        // Dispatch real-time SSE notification event
+        sseEmitterService.sendNotification(recipient.getId(), mapToResponse(notification));
     }
 
+    /**
+     * {@inheritDoc}
+     */
     @Override
     @Transactional(readOnly = true)
     public List<NotificationResponse> getUserNotifications(Long recipientId) {
@@ -60,6 +74,9 @@ public class NotificationServiceImpl implements NotificationService {
                 .collect(Collectors.toList());
     }
 
+    /**
+     * {@inheritDoc}
+     */
     @Override
     @Transactional
     public void markAsRead(Long notificationId, Long recipientId) {
@@ -75,6 +92,9 @@ public class NotificationServiceImpl implements NotificationService {
         notificationRepository.save(notification);
     }
 
+    /**
+     * {@inheritDoc}
+     */
     @Override
     @Transactional
     public void markAllAsRead(Long recipientId) {
@@ -84,12 +104,21 @@ public class NotificationServiceImpl implements NotificationService {
         notificationRepository.saveAll(notifications);
     }
 
+    /**
+     * {@inheritDoc}
+     */
     @Override
     @Transactional(readOnly = true)
     public long getUnreadCount(Long recipientId) {
         return notificationRepository.countByRecipientIdAndIsReadFalse(recipientId);
     }
 
+    /**
+     * Maps a {@link Notification} entity to a {@link NotificationResponse} DTO.
+     *
+     * @param notification the notification entity
+     * @return the mapped notification response DTO
+     */
     private NotificationResponse mapToResponse(Notification notification) {
         String title = switch (notification.getType()) {
             case TASK_ASSIGNED -> "Bạn được giao công việc mới";
@@ -98,15 +127,32 @@ public class NotificationServiceImpl implements NotificationService {
             default -> "Thông báo hệ thống";
         };
 
+        String formattedMessage = formatMessage(notification.getMessage());
+
         return NotificationResponse.builder()
                 .id(notification.getId())
                 .title(title)
-                .message(notification.getMessage())
+                .message(formattedMessage)
                 .type(notification.getType())
                 .taskId(notification.getTaskId())
                 .commentId(notification.getCommentId())
                 .isRead(notification.getIsRead())
                 .createdAt(notification.getCreatedAt())
                 .build();
+    }
+
+    /**
+     * Formats status enum codes within notification messages into localized strings.
+     *
+     * @param message raw notification message
+     * @return formatted localized message
+     */
+    private String formatMessage(String message) {
+        if (message == null) return null;
+        return message
+                .replace("PENDING", "Chưa làm")
+                .replace("IN_PROGRESS", "Đang làm")
+                .replace("COMPLETED", "Hoàn thành")
+                .replace("CANCELLED", "Đã hủy");
     }
 }

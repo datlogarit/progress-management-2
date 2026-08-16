@@ -15,6 +15,9 @@ import org.springframework.transaction.annotation.Transactional;
 import java.util.List;
 import java.util.stream.Collectors;
 
+/**
+ * Implementation of {@link TeamService} providing team management operations.
+ */
 @Slf4j
 @Service
 @RequiredArgsConstructor
@@ -22,6 +25,9 @@ public class TeamServiceImpl implements TeamService {
 
     private final TeamRepository teamRepository;
 
+    /**
+     * {@inheritDoc}
+     */
     @Override
     @Transactional(readOnly = true)
     public List<TeamResponse> getAllTeams() {
@@ -31,6 +37,9 @@ public class TeamServiceImpl implements TeamService {
                 .collect(Collectors.toList());
     }
 
+    /**
+     * {@inheritDoc}
+     */
     @Override
     @Transactional(readOnly = true)
     public TeamResponse getTeamById(Long id) {
@@ -40,6 +49,9 @@ public class TeamServiceImpl implements TeamService {
         return mapToResponse(team);
     }
 
+    /**
+     * {@inheritDoc}
+     */
     @Override
     @Transactional
     public TeamResponse createTeam(CreateTeamRequest request) {
@@ -53,6 +65,9 @@ public class TeamServiceImpl implements TeamService {
         return mapToResponse(saved);
     }
 
+    /**
+     * {@inheritDoc}
+     */
     @Override
     @Transactional
     public TeamResponse updateTeam(Long id, UpdateTeamRequest request) {
@@ -71,6 +86,9 @@ public class TeamServiceImpl implements TeamService {
         return mapToResponse(updated);
     }
 
+    /**
+     * {@inheritDoc}
+     */
     @Override
     @Transactional
     public void deleteTeam(Long id) {
@@ -81,6 +99,12 @@ public class TeamServiceImpl implements TeamService {
         teamRepository.deleteById(id);
     }
 
+    /**
+     * Maps a {@link Team} entity to a {@link TeamResponse} DTO.
+     *
+     * @param team the team entity
+     * @return the team response DTO
+     */
     private TeamResponse mapToResponse(Team team) {
         return TeamResponse.builder()
                 .id(team.getId())

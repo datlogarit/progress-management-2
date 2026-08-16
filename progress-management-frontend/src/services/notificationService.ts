@@ -70,3 +70,35 @@ export async function markAllNotificationsAsReadApi(): Promise<void> {
     throw new Error(data.message || 'Không thể đánh dấu tất cả đã đọc');
   }
 }
+
+export function subscribeToNotifications(
+  onMessage: (notification: NotificationDTO) => void,
+  onError?: (err: any) => void
+): () => void {
+  const token = localStorage.getItem('access_token');
+  const url = `${API_BASE_URL}/notifications/stream?token=${token}`;
+  
+  const eventSource = new EventSource(url);
+
+  eventSource.addEventListener('NOTIFICATION', (event) => {
+    try {
+      const data = JSON.parse(event.data);
+      onMessage(data);
+    } catch (err) {
+      console.error('Error parsing notification data', err);
+    }
+  });
+
+  eventSource.addEventListener('INIT', (event) => {
+    console.log('SSE Initialized:', event.data);
+  });
+
+  eventSource.onerror = (error) => {
+    console.error('SSE connection error:', error);
+    if (onError) onError(error);
+  };
+
+  return () => {
+    eventSource.close();
+  };
+}

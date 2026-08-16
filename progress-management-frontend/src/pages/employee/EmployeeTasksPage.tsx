@@ -4,6 +4,7 @@ import { Header } from '../../components/Header';
 import { TaskCard } from '../../components/leader/TaskCard';
 import { TaskDetailModal } from '../../components/leader/TaskDetailModal';
 import { getMyTasksApi, updateTaskStatusApi, type TaskDTO, type TaskStatus } from '../../services/taskService';
+import toast from 'react-hot-toast';
 import { 
   Search, 
   Filter, 
@@ -52,8 +53,9 @@ export function EmployeeTasksPage() {
     try {
       const updated = await updateTaskStatusApi(taskId, status);
       setTasks(prev => prev.map(t => t.id === taskId ? updated : t));
+      toast.success('Cập nhật trạng thái thành công');
     } catch (err: any) {
-      alert(err.message || 'Không thể cập nhật trạng thái');
+      toast.error(err.message || 'Không thể cập nhật trạng thái');
     }
   };
 

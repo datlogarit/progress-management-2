@@ -1,4 +1,6 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
+import { useSearchParams, useNavigate } from 'react-router-dom';
+import toast from 'react-hot-toast';
 import { AdminLayout } from './AdminLayout';
 import { Modal } from '../../components/Modal';
 import { 
@@ -12,17 +14,111 @@ import { getAllDepartmentsApi } from '../../services/departmentService';
 import type { DepartmentDTO } from '../../services/departmentService';
 import { getAllUsersApi } from '../../services/userService';
 import type { UserDTO } from '../../services/authService';
-import { FolderKanban, Plus, Edit3, Trash2, Users, Calendar, Building2 } from 'lucide-react';
+import { FolderKanban, Plus, Edit3, Trash2, Users, Calendar, Building2, Search, ChevronDown, Check } from 'lucide-react';
 import './ProjectManagementPage.css';
 
+interface MemberSelectDropbarProps {
+  label: string;
+  placeholder?: string;
+  options: UserDTO[];
+  selectedIds: number[];
+  onToggle: (id: number) => void;
+  noOptionsText: string;
+}
+
+function MemberSelectDropbar({
+  label,
+  placeholder = '-- Chọn thành viên --',
+  options,
+  selectedIds,
+  onToggle,
+  noOptionsText,
+}: MemberSelectDropbarProps) {
+  const [isOpen, setIsOpen] = useState(false);
+  const dropdownRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    function handleClickOutside(event: MouseEvent) {
+      if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
+        setIsOpen(false);
+      }
+    }
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
+
+  const selectedUsers = options.filter((u) => selectedIds.includes(u.id));
+
+  return (
+    <div className="form-group dropbar-group" ref={dropdownRef}>
+      <label>{label}</label>
+      <div 
+        className={`dropbar-header ${isOpen ? 'active' : ''}`}
+        onClick={() => setIsOpen(!isOpen)}
+      >
+        <div className="dropbar-selected-tags">
+          {selectedUsers.length === 0 ? (
+            <span className="dropbar-placeholder">{placeholder}</span>
+          ) : (
+            selectedUsers.map((u) => (
+              <span key={u.id} className="dropbar-tag">
+                {u.fullName}
+                <span
+                  className="dropbar-tag-remove"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onToggle(u.id);
+                  }}
+                >
+                  ×
+                </span>
+              </span>
+            ))
+          )}
+        </div>
+        <div className="dropbar-arrow">
+          <ChevronDown size={18} style={{ transform: isOpen ? 'rotate(180deg)' : 'rotate(0deg)', transition: 'transform 0.2s' }} />
+        </div>
+      </div>
+
+      {isOpen && (
+        <div className="dropbar-menu">
+          {options.length === 0 ? (
+            <div className="dropbar-no-options">{noOptionsText}</div>
+          ) : (
+            options.map((u) => {
+              const isSelected = selectedIds.includes(u.id);
+              return (
+                <div
+                  key={u.id}
+                  className={`dropbar-item ${isSelected ? 'selected' : ''}`}
+                  onClick={() => onToggle(u.id)}
+                >
+                  <div className="dropbar-checkbox">
+                    {isSelected && <Check size={14} />}
+                  </div>
+                  <span className="dropbar-item-text">{u.fullName} (@{u.username})</span>
+                </div>
+              );
+            })
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
 export function ProjectManagementPage() {
+  const [searchParams] = useSearchParams();
+  const initialSearch = searchParams.get('search') || '';
+  const navigate = useNavigate();
+
   const [projects, setProjects] = useState<ProjectDTO[]>([]);
   const [departments, setDepartments] = useState<DepartmentDTO[]>([]);
   const [users, setUsers] = useState<UserDTO[]>([]);
   
   const [loading, setLoading] = useState<boolean>(true);
-  const [error, setError] = useState<string | null>(null);
-  const [successMsg, setSuccessMsg] = useState<string | null>(null);
+  const [searchQuery, setSearchQuery] = useState<string>(initialSearch);
 
   // Modals
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
@@ -42,7 +138,6 @@ export function ProjectManagementPage() {
   const fetchData = async () => {
     try {
       setLoading(true);
-      setError(null);
       const [projData, deptData, userData] = await Promise.all([
         getProjectsApi(),
         getAllDepartmentsApi(),
@@ -52,7 +147,7 @@ export function ProjectManagementPage() {
       setDepartments(deptData);
       setUsers(userData);
     } catch (err: any) {
-      setError(err.message || 'Không thể tải dữ liệu');
+      toast.error(err.message || 'Không thể tải dữ liệu');
     } finally {
       setLoading(false);
     }
@@ -62,19 +157,13 @@ export function ProjectManagementPage() {
     fetchData();
   }, []);
 
-  const showSuccess = (msg: string) => {
-    setSuccessMsg(msg);
-    setTimeout(() => setSuccessMsg(null), 4000);
-  };
-
   const handleCreateSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!form.departmentId) {
-      setError('Vui lòng chọn phòng ban cho dự án');
+      toast.error('Vui lòng chọn phòng ban cho dự án');
       return;
     }
     try {
-      setError(null);
       await createProjectApi({
         name: form.name,
         description: form.description,
@@ -83,10 +172,10 @@ export function ProjectManagementPage() {
         managerIds: form.managerIds,
       });
       setIsCreateModalOpen(false);
-      showSuccess('Tạo dự án mới thành công!');
+      toast.success('Tạo dự án mới thành công!');
       fetchData();
     } catch (err: any) {
-      setError(err.message || 'Lỗi tạo dự án');
+      toast.error(err.message || 'Lỗi tạo dự án');
     }
   };
 
@@ -109,7 +198,6 @@ export function ProjectManagementPage() {
     e.preventDefault();
     if (!selectedProject) return;
     try {
-      setError(null);
       await updateProjectApi(selectedProject.id, {
         name: form.name,
         description: form.description,
@@ -118,22 +206,21 @@ export function ProjectManagementPage() {
         managerIds: form.managerIds,
       });
       setIsEditModalOpen(false);
-      showSuccess(`Cập nhật dự án ${selectedProject.name} thành công!`);
+      toast.success(`Cập nhật dự án ${selectedProject.name} thành công!`);
       fetchData();
     } catch (err: any) {
-      setError(err.message || 'Lỗi cập nhật dự án');
+      toast.error(err.message || 'Lỗi cập nhật dự án');
     }
   };
 
   const handleDelete = async (p: ProjectDTO) => {
     if (!window.confirm(`Bạn có chắc chắn muốn xóa dự án "${p.name}"?`)) return;
     try {
-      setError(null);
       await deleteProjectApi(p.id);
-      showSuccess(`Đã xóa dự án ${p.name}!`);
+      toast.success(`Đã xóa dự án ${p.name}!`);
       fetchData();
     } catch (err: any) {
-      setError(err.message || 'Lỗi xóa dự án');
+      toast.error(err.message || 'Lỗi xóa dự án');
     }
   };
 
@@ -168,16 +255,31 @@ export function ProjectManagementPage() {
   const availableUsersForDept = users.filter(u => u.departmentId === form.departmentId);
   const availableLeadersForDept = availableUsersForDept;
 
+  const filteredProjects = projects.filter((p) =>
+    p.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+    (p.description && p.description.toLowerCase().includes(searchQuery.toLowerCase())) ||
+    (p.departmentName && p.departmentName.toLowerCase().includes(searchQuery.toLowerCase()))
+  );
+
   return (
     <AdminLayout title="Quản lý Dự án">
       <div className="page-container">
-        {successMsg && <div className="alert-banner success">{successMsg}</div>}
-        {error && <div className="alert-banner danger">{error}</div>}
-
         <div className="toolbar-panel">
-          <div className="proj-summary-count">
-            <FolderKanban size={20} className="text-accent" />
-            <span>Danh sách Dự án ({projects.length})</span>
+          <div className="proj-summary-count" style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <FolderKanban size={20} className="text-accent" />
+              <span>Danh sách Dự án ({filteredProjects.length})</span>
+            </div>
+
+            <div className="search-box">
+              <Search size={16} className="search-icon" />
+              <input
+                type="text"
+                placeholder="Tìm kiếm dự án..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+              />
+            </div>
           </div>
 
           <button className="btn-primary" onClick={openCreateModal}>
@@ -190,7 +292,7 @@ export function ProjectManagementPage() {
           <div className="loading-state">Đang tải danh sách dự án...</div>
         ) : (
           <div className="proj-grid">
-            {projects.map((p) => (
+            {filteredProjects.map((p) => (
               <div key={p.id} className="proj-card">
                 <div className="proj-card-header">
                   <div className="proj-icon">
@@ -220,10 +322,15 @@ export function ProjectManagementPage() {
                 </div>
 
                 <div className="proj-card-footer">
-                  <div className="proj-stat">
+                  <div 
+                    className="proj-stat" 
+                    style={{ cursor: 'pointer', color: 'var(--color-accent, #4f46e5)' }}
+                    onClick={() => navigate(`/admin/users?projectId=${p.id}`)}
+                    title="Bấm để xem quản lý tài khoản các user trong dự án này"
+                  >
                     <Users size={14} />
                     <span>
-                      {(p.members ? p.members.filter(m => m.projectRole === 'LEADER').length : 0)} Trưởng dự án | {(p.members ? p.members.filter(m => m.projectRole === 'EMPLOYEE').length : 0)} Nhân viên
+                      {(p.members ? p.members.filter(m => m.projectRole === 'LEADER').length : 0)} Trưởng | {(p.members ? p.members.filter(m => m.projectRole === 'EMPLOYEE').length : 0)} Nhân viên
                     </span>
                   </div>
                   <div className="proj-stat">
@@ -265,39 +372,23 @@ export function ProjectManagementPage() {
           
           {form.departmentId > 0 && (
             <>
-              <div className="form-group">
-                <label>Trưởng dự án (Leader quản lý)</label>
-                <div className="members-select-list">
-                  {availableLeadersForDept.length === 0 ? <p className="no-members-text">Phòng ban này chưa có Leader nào.</p> : null}
-                  {availableLeadersForDept.map(u => (
-                    <label key={u.id} className="member-checkbox-label">
-                      <input 
-                        type="checkbox" 
-                        checked={form.managerIds.includes(u.id)}
-                        onChange={() => handleManagerToggle(u.id)}
-                      />
-                      {u.fullName} ({u.username})
-                    </label>
-                  ))}
-                </div>
-              </div>
+              <MemberSelectDropbar
+                label="Trưởng dự án (Leader quản lý)"
+                placeholder="-- Chọn Trưởng dự án --"
+                options={availableLeadersForDept}
+                selectedIds={form.managerIds}
+                onToggle={handleManagerToggle}
+                noOptionsText="Phòng ban này chưa có Leader nào."
+              />
 
-              <div className="form-group">
-                <label>Thành viên thực hiện</label>
-                <div className="members-select-list">
-                  {availableUsersForDept.length === 0 ? <p className="no-members-text">Phòng ban này chưa có nhân sự nào.</p> : null}
-                  {availableUsersForDept.map(u => (
-                    <label key={u.id} className="member-checkbox-label">
-                      <input 
-                        type="checkbox" 
-                        checked={form.memberIds.includes(u.id)}
-                        onChange={() => handleMemberToggle(u.id)}
-                      />
-                      {u.fullName} ({u.username})
-                    </label>
-                  ))}
-                </div>
-              </div>
+              <MemberSelectDropbar
+                label="Thành viên thực hiện"
+                placeholder="-- Chọn Thành viên thực hiện --"
+                options={availableUsersForDept}
+                selectedIds={form.memberIds}
+                onToggle={handleMemberToggle}
+                noOptionsText="Phòng ban này chưa có nhân sự nào."
+              />
             </>
           )}
 
@@ -328,39 +419,23 @@ export function ProjectManagementPage() {
             <textarea rows={3} value={form.description} onChange={(e) => setForm({...form, description: e.target.value})} />
           </div>
 
-          <div className="form-group">
-            <label>Trưởng dự án (Leader quản lý)</label>
-            <div className="members-select-list">
-              {availableLeadersForDept.length === 0 ? <p className="no-members-text">Phòng ban này chưa có nhân sự nào.</p> : null}
-              {availableLeadersForDept.map(u => (
-                <label key={u.id} className="member-checkbox-label">
-                  <input 
-                    type="checkbox" 
-                    checked={form.managerIds.includes(u.id)}
-                    onChange={() => handleManagerToggle(u.id)}
-                  />
-                  {u.fullName} ({u.username})
-                </label>
-              ))}
-            </div>
-          </div>
+          <MemberSelectDropbar
+            label="Trưởng dự án (Leader quản lý)"
+            placeholder="-- Chọn Trưởng dự án --"
+            options={availableLeadersForDept}
+            selectedIds={form.managerIds}
+            onToggle={handleManagerToggle}
+            noOptionsText="Phòng ban này chưa có nhân sự nào."
+          />
 
-          <div className="form-group">
-            <label>Thành viên thực hiện (thuộc phòng ban {selectedProject?.departmentName})</label>
-            <div className="members-select-list">
-              {availableUsersForDept.length === 0 ? <p className="no-members-text">Phòng ban này chưa có nhân sự nào.</p> : null}
-              {availableUsersForDept.map(u => (
-                <label key={u.id} className="member-checkbox-label">
-                  <input 
-                    type="checkbox" 
-                    checked={form.memberIds.includes(u.id)}
-                    onChange={() => handleMemberToggle(u.id)}
-                  />
-                  {u.fullName} ({u.username})
-                </label>
-              ))}
-            </div>
-          </div>
+          <MemberSelectDropbar
+            label={`Thành viên thực hiện (thuộc phòng ban ${selectedProject?.departmentName || ''})`}
+            placeholder="-- Chọn Thành viên thực hiện --"
+            options={availableUsersForDept}
+            selectedIds={form.memberIds}
+            onToggle={handleMemberToggle}
+            noOptionsText="Phòng ban này chưa có nhân sự nào."
+          />
 
           <div className="modal-actions">
             <button type="button" className="btn-secondary" onClick={() => setIsEditModalOpen(false)}>Hủy</button>

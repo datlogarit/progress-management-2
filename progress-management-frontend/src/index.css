@@ -1,34 +1,36 @@
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500;600&family=Space+Grotesk:wght@600;700&display=swap');
 
 :root {
   /* Colors */
-  --color-sidebar-bg: #1e293b;
-  --color-page-bg: #f8fafc;
-  --color-card-bg: #ffffff;
+  --color-sidebar-bg: #1B2430;
+  --color-page-bg: #F7F8FA;
+  --color-card-bg: #FFFFFF;
 
   /* Accent */
-  --color-accent: #4f46e5;
-  --color-accent-hover: #4338ca;
-  --color-accent-subtle: #eef2ff;
+  --color-accent: #1F6F78;
+  --color-accent-hover: #154F56;
+  --color-accent-subtle: #eaf1f2;
 
   /* Status */
-  --color-success: #16a34a;
-  --color-success-subtle: #f0fdf4;
-  --color-danger: #dc2626;
-  --color-danger-subtle: #fef2f2;
-  --color-warning: #d97706;
-  --color-warning-subtle: #fffbeb;
+  --color-success: #2F9E58;
+  --color-success-subtle: #eaf5ed;
+  --color-danger: #C1443D;
+  --color-danger-subtle: #f9eceb;
+  --color-warning: #C67C1E;
+  --color-warning-subtle: #f9f2e8;
 
   /* Text */
-  --color-text-primary: #0f172a;
-  --color-text-secondary: #64748b;
+  --color-text-primary: #1B2430;
+  --color-text-secondary: #5C6773;
   --color-text-disabled: #94a3b8;
 
   /* Border */
-  --color-border: #e2e8f0;
+  --color-border: #E2E6EB;
 
   /* Typography */
-  --font-family-base: 'Inter', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  --font-family-base: 'IBM Plex Sans', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  --font-family-display: 'Space Grotesk', sans-serif;
+  --font-family-mono: 'IBM Plex Mono', monospace;
   --font-size-display: 34px;
   --font-size-h1: 26px;
   --font-size-h2: 19px;
@@ -69,6 +71,22 @@ body {
   min-height: 100vh;
 }
 
+h1, h2, h3, h4, h5, h6, .header-page-title, .page-title, .section-title {
+  font-family: var(--font-family-display);
+}
+
+h1, .header-page-title, .page-title {
+  font-weight: 700;
+}
+
+h2, h3, h4, h5, h6, .section-title {
+  font-weight: 600;
+}
+
+.stat-value, .metric, .number-cell {
+  font-family: var(--font-family-mono);
+}
+
 #root {
   min-height: 100vh;
   display: flex;
@@ -78,6 +96,7 @@ body {
 /* Global App Layout Utilities */
 .app-layout {
   display: flex;
+  align-items: flex-start;
   min-height: 100vh;
   width: 100%;
   background-color: var(--color-page-bg);

@@ -24,6 +24,9 @@ import org.springframework.transaction.annotation.Transactional;
 import java.util.List;
 import java.util.stream.Collectors;
 
+/**
+ * Implementation of {@link CommentService} providing comment management and notification triggers.
+ */
 @Slf4j
 @Service
 @RequiredArgsConstructor
@@ -35,6 +38,9 @@ public class CommentServiceImpl implements CommentService {
     private final com.example.demo.repository.ProjectMemberRepository projectMemberRepository;
     private final NotificationService notificationService;
 
+    /**
+     * {@inheritDoc}
+     */
     @Override
     @Transactional
     public CommentResponse addComment(Long taskId, CreateCommentRequest request, UserPrincipal currentUser) {
@@ -86,6 +92,9 @@ public class CommentServiceImpl implements CommentService {
         return mapToCommentResponse(savedComment);
     }
 
+    /**
+     * {@inheritDoc}
+     */
     @Override
     @Transactional(readOnly = true)
     public List<CommentResponse> getTaskComments(Long taskId, UserPrincipal currentUser) {
@@ -110,6 +119,12 @@ public class CommentServiceImpl implements CommentService {
                 .collect(Collectors.toList());
     }
 
+    /**
+     * Maps a {@link Comment} entity to a {@link CommentResponse} DTO.
+     *
+     * @param comment the comment entity
+     * @return the mapped comment response DTO
+     */
     private CommentResponse mapToCommentResponse(Comment comment) {
         UserSummaryDto userDto = UserSummaryDto.builder()
                 .id(comment.getUser().getId())

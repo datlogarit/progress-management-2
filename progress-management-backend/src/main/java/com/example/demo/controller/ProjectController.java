@@ -13,8 +13,6 @@ import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 import com.example.demo.annotation.Authorize;
 import com.example.demo.constant.PermissionEnum;
-import com.example.demo.constant.RoleEnum;
-import com.example.demo.constant.ScopeType;
 
 import java.util.List;
 
@@ -36,7 +34,7 @@ public class ProjectController {
     }
 
     @GetMapping("/{id}")
-    @Authorize(permission = { PermissionEnum.PROJECT_READ }, scope = ScopeType.PROJECT, scopeParam = "id")
+    @Authorize(permission = { PermissionEnum.PROJECT_READ })
     public ResponseEntity<ProjectResponse> getProjectById(
             @PathVariable Long id,
             @AuthenticationPrincipal UserPrincipal currentUser) {
@@ -52,7 +50,7 @@ public class ProjectController {
     }
 
     @PutMapping("/{id}")
-    @Authorize(permission = { PermissionEnum.PROJECT_UPDATE }, scope = ScopeType.PROJECT, scopeParam = "id")
+    @Authorize(permission = { PermissionEnum.PROJECT_UPDATE })
     public ResponseEntity<ProjectResponse> updateProject(
             @PathVariable Long id,
             @Valid @RequestBody UpdateProjectRequest request) {
@@ -61,7 +59,7 @@ public class ProjectController {
     }
 
     @DeleteMapping("/{id}")
-    @Authorize(permission = { PermissionEnum.PROJECT_DELETE }, scope = ScopeType.PROJECT, scopeParam = "id")
+    @Authorize(permission = { PermissionEnum.PROJECT_DELETE })
     public ResponseEntity<Void> deleteProject(@PathVariable Long id) {
         projectService.deleteProject(id);
         return ResponseEntity.noContent().build();

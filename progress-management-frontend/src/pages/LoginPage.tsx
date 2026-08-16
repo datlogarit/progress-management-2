@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import toast from 'react-hot-toast';
 import { useAuth } from '../context/AuthContext';
 import { loginApi } from '../services/authService';
 import { 
@@ -7,8 +8,6 @@ import {
   Lock, 
   Eye, 
   EyeOff, 
-  AlertCircle, 
-  CheckCircle2, 
   Loader2, 
   ShieldCheck, 
   CheckSquare, 
@@ -24,25 +23,21 @@ function LoginPage() {
   const [rememberMe, setRememberMe] = useState(false);
 
   const [loading, setLoading] = useState(false);
-  const [errorMessage, setErrorMessage] = useState('');
-  const [successMessage, setSuccessMessage] = useState('');
 
   const { login } = useAuth();
   const navigate = useNavigate();
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
-    setErrorMessage('');
-    setSuccessMessage('');
 
     // Input Validation
     if (!usernameOrEmail.trim()) {
-      setErrorMessage('Vui lòng nhập tên đăng nhập hoặc email!');
+      toast.error('Vui lòng nhập tên đăng nhập hoặc email!');
       return;
     }
 
     if (!password) {
-      setErrorMessage('Vui lòng nhập mật khẩu!');
+      toast.error('Vui lòng nhập mật khẩu!');
       return;
     }
 
@@ -54,14 +49,14 @@ function LoginPage() {
         password,
       });
 
-      setSuccessMessage('Đăng nhập thành công! Đang chuyển hướng...');
+      toast.success('Đăng nhập thành công!');
       login(response);
 
       setTimeout(() => {
         navigate('/');
-      }, 1000);
+      }, 500);
     } catch (err: any) {
-      setErrorMessage(err?.message || 'Đăng nhập thất bại. Vui lòng kiểm tra lại!');
+      toast.error(err?.message || 'Đăng nhập thất bại. Vui lòng kiểm tra lại!');
     } finally {
       setLoading(false);
     }
@@ -139,22 +134,6 @@ function LoginPage() {
             <h2 className="form-title">Đăng nhập Hệ thống</h2>
             <p className="form-subtitle">Cổng đăng nhập an toàn dành cho cán bộ nhân viên nội bộ</p>
           </div>
-
-          {/* Alert Error Message */}
-          {errorMessage && (
-            <div className="alert-box alert-danger">
-              <AlertCircle className="alert-icon" />
-              <span>{errorMessage}</span>
-            </div>
-          )}
-
-          {/* Alert Success Message */}
-          {successMessage && (
-            <div className="alert-box alert-success">
-              <CheckCircle2 className="alert-icon" />
-              <span>{successMessage}</span>
-            </div>
-          )}
 
           <form onSubmit={handleSubmit} className="login-form" noValidate>
             {/* Input Username or Email */}

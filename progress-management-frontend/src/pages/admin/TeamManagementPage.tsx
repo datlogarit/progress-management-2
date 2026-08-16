@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react';
+import toast from 'react-hot-toast';
 import { AdminLayout } from './AdminLayout';
 import { Modal } from '../../components/Modal';
 import { 
@@ -8,20 +9,24 @@ import {
   deleteTeamApi,
   type TeamDTO
 } from '../../services/teamService.ts';
-import { UserCheck, Plus, Edit3, Trash2, Calendar, Search } from 'lucide-react';
+import { getAllDepartmentsApi, type DepartmentDTO } from '../../services/departmentService.ts';
+import { UserCheck, Plus, Edit3, Trash2, Calendar, Search, Building2, ExternalLink } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
 import './TeamManagementPage.css';
 
 export function TeamManagementPage() {
   const [teams, setTeams] = useState<TeamDTO[]>([]);
+  const [departments, setDepartments] = useState<DepartmentDTO[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
-  const [error, setError] = useState<string | null>(null);
-  const [successMsg, setSuccessMsg] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState<string>('');
+  const navigate = useNavigate();
 
   // Modals
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+  const [isDetailModalOpen, setIsDetailModalOpen] = useState(false);
   const [selectedTeam, setSelectedTeam] = useState<TeamDTO | null>(null);
+  const [selectedDetailTeam, setSelectedDetailTeam] = useState<TeamDTO | null>(null);
 
   // Form State
   const [teamForm, setTeamForm] = useState({
@@ -32,12 +37,15 @@ export function TeamManagementPage() {
   const fetchTeams = async () => {
     try {
       setLoading(true);
-      setError(null);
-      const data = await getAllTeamsApi();
-      setTeams(data);
+      const [teamsData, deptsData] = await Promise.all([
+        getAllTeamsApi(),
+        getAllDepartmentsApi(),
+      ]);
+      setTeams(teamsData);
+      setDepartments(deptsData);
     } catch (err: unknown) {
-      if (err instanceof Error) setError(err.message);
-      else setError('Không thể tải danh sách đội nhóm');
+      if (err instanceof Error) toast.error(err.message);
+      else toast.error('Không thể tải danh sách đội nhóm');
     } finally {
       setLoading(false);
     }
@@ -47,22 +55,16 @@ export function TeamManagementPage() {
     fetchTeams();
   }, []);
 
-  const showSuccess = (msg: string) => {
-    setSuccessMsg(msg);
-    setTimeout(() => setSuccessMsg(null), 4000);
-  };
-
   const handleCreateTeam = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
-      setError(null);
       await createTeamApi(teamForm);
       setIsCreateModalOpen(false);
       setTeamForm({ name: '', description: '' });
-      showSuccess('Tạo đội nhóm mới thành công!');
+      toast.success('Tạo đội nhóm mới thành công!');
       fetchTeams();
     } catch (err: unknown) {
-      if (err instanceof Error) setError(err.message);
+      if (err instanceof Error) toast.error(err.message);
     }
   };
 
@@ -79,13 +81,12 @@ export function TeamManagementPage() {
     e.preventDefault();
     if (!selectedTeam) return;
     try {
-      setError(null);
       await updateTeamApi(selectedTeam.id, teamForm);
       setIsEditModalOpen(false);
-      showSuccess(`Cập nhật đội nhóm "${selectedTeam.name}" thành công!`);
+      toast.success(`Cập nhật đội nhóm "${selectedTeam.name}" thành công!`);
       fetchTeams();
     } catch (err: unknown) {
-      if (err instanceof Error) setError(err.message);
+      if (err instanceof Error) toast.error(err.message);
     }
   };
 
@@ -93,12 +94,11 @@ export function TeamManagementPage() {
     if (!window.confirm(`Bạn có chắc chắn muốn xóa đội nhóm "${t.name}"?`)) return;
 
     try {
-      setError(null);
       await deleteTeamApi(t.id);
-      showSuccess(`Đã xóa đội nhóm "${t.name}"!`);
+      toast.success(`Đã xóa đội nhóm "${t.name}"!`);
       fetchTeams();
     } catch (err: unknown) {
-      if (err instanceof Error) setError(err.message);
+      if (err instanceof Error) toast.error(err.message);
     }
   };
 
@@ -110,9 +110,6 @@ export function TeamManagementPage() {
   return (
     <AdminLayout title="Quản lý Đội nhóm (Teams)">
       <div className="page-container">
-        {/* Banner Alert Messages */}
-        {successMsg && <div className="alert-banner success">{successMsg}</div>}
-        {error && <div className="alert-banner danger">{error}</div>}
 
         {/* Toolbar Header */}
         <div className="toolbar-panel">
@@ -146,48 +143,64 @@ export function TeamManagementPage() {
           <div className="loading-state">Đang tải danh sách đội nhóm...</div>
         ) : (
           <div className="team-grid">
-            {filteredTeams.map((t) => (
-              <div key={t.id} className="team-card">
-                <div className="team-card-header">
-                  <div className="team-icon-badge">
-                    <UserCheck size={22} />
+            {filteredTeams.map((t) => {
+              const subDepts = departments.filter((d) => d.teamId === t.id);
+              return (
+                <div key={t.id} className="team-card">
+                  <div className="team-card-header">
+                    <div className="team-icon-badge">
+                      <UserCheck size={22} />
+                    </div>
+                    <div className="team-card-actions">
+                      <button
+                        className="btn-icon edit"
+                        onClick={() => handleOpenEditModal(t)}
+                        title="Chỉnh sửa đội nhóm"
+                      >
+                        <Edit3 size={16} />
+                      </button>
+                      <button
+                        className="btn-icon delete"
+                        onClick={() => handleDeleteTeam(t)}
+                        title="Xóa đội nhóm"
+                      >
+                        <Trash2 size={16} />
+                      </button>
+                    </div>
                   </div>
-                  <div className="team-card-actions">
-                    <button
-                      className="btn-icon edit"
-                      onClick={() => handleOpenEditModal(t)}
-                      title="Chỉnh sửa đội nhóm"
-                    >
-                      <Edit3 size={16} />
-                    </button>
-                    <button
-                      className="btn-icon delete"
-                      onClick={() => handleDeleteTeam(t)}
-                      title="Xóa đội nhóm"
-                    >
-                      <Trash2 size={16} />
-                    </button>
-                  </div>
-                </div>
 
-                <div className="team-card-body">
-                  <div className="team-header-title">
-                    <h3 className="team-title">{t.name}</h3>
-                    <span className="team-tag">Team</span>
-                  </div>
-                  <p className="team-desc">
-                    {t.description || 'Chưa có mô tả chi tiết cho đội nhóm này.'}
-                  </p>
-                </div>
+                  <div className="team-card-body">
+                    <div className="team-header-title">
+                      <h3 className="team-title">{t.name}</h3>
+                      <span className="team-tag">Team</span>
+                    </div>
+                    <p className="team-desc">
+                      {t.description || 'Chưa có mô tả chi tiết cho đội nhóm này.'}
+                    </p>
 
-                <div className="team-card-footer">
-                  <div className="team-stat">
-                    <Calendar size={14} />
-                    <span>Tạo ngày: {new Date(t.createdAt).toLocaleDateString('vi-VN')}</span>
+                    <div style={{ marginTop: '12px' }}>
+                      <button
+                        className="btn-subteams-link"
+                        onClick={() => {
+                          setSelectedDetailTeam(t);
+                          setIsDetailModalOpen(true);
+                        }}
+                      >
+                        <Building2 size={14} />
+                        <span>Xem {subDepts.length} phòng ban/team trong đội</span>
+                      </button>
+                    </div>
+                  </div>
+
+                  <div className="team-card-footer">
+                    <div className="team-stat">
+                      <Calendar size={14} />
+                      <span>Tạo ngày: {new Date(t.createdAt).toLocaleDateString('vi-VN')}</span>
+                    </div>
                   </div>
                 </div>
-              </div>
-            ))}
+              );
+            })}
 
             {filteredTeams.length === 0 && (
               <div className="empty-team-card">
@@ -281,6 +294,42 @@ export function TeamManagementPage() {
             </button>
           </div>
         </form>
+      </Modal>
+      {/* DETAIL TEAM MODAL */}
+      <Modal
+        isOpen={isDetailModalOpen}
+        onClose={() => setIsDetailModalOpen(false)}
+        title={`Các phòng ban / team trong đội: ${selectedDetailTeam?.name}`}
+      >
+        <div className="subteams-list">
+          {departments
+            .filter((d) => d.teamId === selectedDetailTeam?.id)
+            .map((d) => (
+              <div
+                key={d.id}
+                className="subteam-item clickable"
+                onClick={() => navigate(`/admin/departments?search=${encodeURIComponent(d.name)}`)}
+                title={`Bấm để tới trang Quản lý phòng ban ${d.name}`}
+              >
+                <div className="subteam-icon">
+                  <Building2 size={20} />
+                </div>
+                <div className="subteam-info">
+                  <div className="subteam-name">{d.name}</div>
+                  <div className="subteam-desc">{d.description || 'Chưa có mô tả'}</div>
+                </div>
+                <div className="subteam-badge">{d.userCount} nhân sự</div>
+                <div className="subteam-link-icon">
+                  <ExternalLink size={16} />
+                </div>
+              </div>
+            ))}
+          {departments.filter((d) => d.teamId === selectedDetailTeam?.id).length === 0 && (
+            <div className="empty-state-text" style={{ padding: '24px', textAlign: 'center', color: '#64748b' }}>
+              Chưa có phòng ban / team con nào thuộc đội nhóm này.
+            </div>
+          )}
+        </div>
       </Modal>
     </AdminLayout>
   );

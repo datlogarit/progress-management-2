@@ -20,6 +20,9 @@ import org.springframework.transaction.annotation.Transactional;
 import java.util.List;
 import java.util.stream.Collectors;
 
+/**
+ * Implementation of {@link DepartmentService} handling business logic for departments.
+ */
 @Slf4j
 @Service
 @RequiredArgsConstructor
@@ -29,6 +32,9 @@ public class DepartmentServiceImpl implements DepartmentService {
     private final UserRepository userRepository;
     private final TeamRepository teamRepository;
 
+    /**
+     * {@inheritDoc}
+     */
     @Override
     @Transactional(readOnly = true)
     public List<DepartmentResponse> getAllDepartments() {
@@ -38,6 +44,9 @@ public class DepartmentServiceImpl implements DepartmentService {
                 .collect(Collectors.toList());
     }
 
+    /**
+     * {@inheritDoc}
+     */
     @Override
     @Transactional(readOnly = true)
     public DepartmentResponse getDepartmentById(Long id) {
@@ -47,6 +56,9 @@ public class DepartmentServiceImpl implements DepartmentService {
         return mapToResponse(department);
     }
 
+    /**
+     * {@inheritDoc}
+     */
     @Override
     @Transactional
     public DepartmentResponse createDepartment(CreateDepartmentRequest request) {
@@ -72,6 +84,9 @@ public class DepartmentServiceImpl implements DepartmentService {
         return mapToResponse(saved);
     }
 
+    /**
+     * {@inheritDoc}
+     */
     @Override
     @Transactional
     public DepartmentResponse updateDepartment(Long id, UpdateDepartmentRequest request) {
@@ -99,6 +114,9 @@ public class DepartmentServiceImpl implements DepartmentService {
         return mapToResponse(updated);
     }
 
+    /**
+     * {@inheritDoc}
+     */
     @Override
     @Transactional
     public void deleteDepartment(Long id) {
@@ -120,6 +138,12 @@ public class DepartmentServiceImpl implements DepartmentService {
         departmentRepository.delete(department);
     }
 
+    /**
+     * Maps a {@link Department} entity to a {@link DepartmentResponse} DTO.
+     *
+     * @param department the department entity
+     * @return the mapped department response DTO
+     */
     private DepartmentResponse mapToResponse(Department department) {
         long userCount = userRepository.countByDepartmentId(department.getId());
         return DepartmentResponse.builder()

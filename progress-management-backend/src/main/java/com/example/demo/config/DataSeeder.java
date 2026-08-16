@@ -71,7 +71,7 @@ public class DataSeeder implements CommandLineRunner {
                 } else if (roleEnum == RoleEnum.EMPLOYEE || roleEnum == RoleEnum.USER) {
                     rolePermissions = permissionRepository.findAll().stream()
                             .filter(p -> p.getName().equals("TASK_READ") || p.getName().equals("TASK_UPDATE")
-                                    || p.getName().equals("PROJECT_READ"))
+                                    || p.getName().equals("TASK_UPDATE_STATUS") || p.getName().equals("PROJECT_READ"))
                             .collect(Collectors.toSet());
                 }
 

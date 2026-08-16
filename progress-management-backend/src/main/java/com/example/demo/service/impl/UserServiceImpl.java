@@ -25,6 +25,9 @@ import org.springframework.transaction.annotation.Transactional;
 import java.util.List;
 import java.util.stream.Collectors;
 
+/**
+ * Implementation of {@link UserService} managing user accounts, task reassignments, and department bindings.
+ */
 @Slf4j
 @Service
 @RequiredArgsConstructor
@@ -37,6 +40,9 @@ public class UserServiceImpl implements UserService {
     private final NotificationRepository notificationRepository;
     private final PasswordEncoder passwordEncoder;
 
+    /**
+     * {@inheritDoc}
+     */
     @Override
     @Transactional(readOnly = true)
     public List<UserResponse> getAllUsers(Long departmentId) {
@@ -52,6 +58,9 @@ public class UserServiceImpl implements UserService {
                 .collect(Collectors.toList());
     }
 
+    /**
+     * {@inheritDoc}
+     */
     @Override
     @Transactional(readOnly = true)
     public UserResponse getUserById(Long id) {
@@ -61,6 +70,9 @@ public class UserServiceImpl implements UserService {
         return mapToUserResponse(user);
     }
 
+    /**
+     * {@inheritDoc}
+     */
     @Override
     @Transactional
     public UserResponse createUser(CreateUserRequest request) {
@@ -102,6 +114,9 @@ public class UserServiceImpl implements UserService {
         return mapToUserResponse(savedUser);
     }
 
+    /**
+     * {@inheritDoc}
+     */
     @Override
     @Transactional
     public UserResponse updateUser(Long id, UpdateUserRequest request) {
@@ -160,6 +175,9 @@ public class UserServiceImpl implements UserService {
         return mapToUserResponse(updatedUser);
     }
 
+    /**
+     * {@inheritDoc}
+     */
     @Override
     @Transactional
     public void resetPassword(Long id, ResetPasswordRequest request) {
@@ -174,6 +192,9 @@ public class UserServiceImpl implements UserService {
         userRepository.save(user);
     }
 
+    /**
+     * {@inheritDoc}
+     */
     @Override
     @Transactional
     public UserResponse assignRole(Long id, AssignRoleRequest request) {
@@ -187,6 +208,9 @@ public class UserServiceImpl implements UserService {
         return mapToUserResponse(updatedUser);
     }
 
+    /**
+     * {@inheritDoc}
+     */
     @Override
     @Transactional
     public UserResponse assignDepartment(Long id, AssignDepartmentRequest request) {
@@ -207,6 +231,9 @@ public class UserServiceImpl implements UserService {
         return mapToUserResponse(updatedUser);
     }
 
+    /**
+     * {@inheritDoc}
+     */
     @Override
     @Transactional
     public void deleteUser(Long id, Long reassignToUserId) {
@@ -247,6 +274,11 @@ public class UserServiceImpl implements UserService {
         userRepository.delete(user);
     }
 
+    /**
+     * Validates that the target user is not an Admin account before modification.
+     *
+     * @param targetUser the user to validate
+     */
     private void validateNotAdminTarget(User targetUser) {
         if (Boolean.TRUE.equals(targetUser.getIsAdmin())) {
             throw new CustomException("Cannot modify or manage Admin accounts", HttpStatus.FORBIDDEN,
@@ -254,6 +286,12 @@ public class UserServiceImpl implements UserService {
         }
     }
 
+    /**
+     * Maps a {@link User} entity to a {@link UserResponse} DTO.
+     *
+     * @param user the user entity
+     * @return the mapped user response DTO
+     */
     private UserResponse mapToUserResponse(User user) {
         String roleStr = Boolean.TRUE.equals(user.getIsAdmin()) ? "ADMIN" : "USER";
         java.util.List<String> permissions = Boolean.TRUE.equals(user.getIsAdmin())

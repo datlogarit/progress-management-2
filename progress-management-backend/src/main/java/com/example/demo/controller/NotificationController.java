@@ -12,6 +12,9 @@ import org.springframework.web.bind.annotation.*;
 import java.util.List;
 import java.util.Map;
 
+import com.example.demo.service.SseEmitterService;
+import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
+
 @CrossOrigin(origins = "*")
 @RestController
 @RequestMapping("/api/v1/notifications")
@@ -19,6 +22,12 @@ import java.util.Map;
 public class NotificationController {
 
     private final NotificationService notificationService;
+    private final SseEmitterService sseEmitterService;
+
+    @GetMapping("/stream")
+    public SseEmitter streamNotifications(@AuthenticationPrincipal UserPrincipal currentUser) {
+        return sseEmitterService.createEmitter(currentUser.getId());
+    }
 
     @GetMapping
     @PreAuthorize("isAuthenticated()")

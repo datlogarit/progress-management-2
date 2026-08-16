@@ -11,6 +11,7 @@ public enum PermissionEnum {
     TASK_READ("Read tasks"),
     TASK_CREATE("Create tasks"),
     TASK_UPDATE("Update tasks"),
+    TASK_UPDATE_STATUS("Update task status"),
     TASK_DELETE("Delete tasks"),
     TASK_ASSIGN("Assign tasks to employees"),
 

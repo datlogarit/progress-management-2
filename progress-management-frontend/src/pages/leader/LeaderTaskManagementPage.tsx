@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useSearchParams } from 'react-router-dom';
+import toast from 'react-hot-toast';
 import { Sidebar } from '../../components/Sidebar';
 import { Header } from '../../components/Header';
 import { TaskCard } from '../../components/leader/TaskCard';
@@ -104,12 +105,18 @@ export function LeaderTaskManagementPage() {
   };
 
   const handleCreateOrUpdateTask = async (formData: any) => {
-    if (editingTask) {
-      const updated = await updateTaskApi(editingTask.id, formData);
-      setTasks(prev => prev.map(t => t.id === updated.id ? updated : t));
-    } else {
-      await createTaskApi(formData);
-      fetchData();
+    try {
+      if (editingTask) {
+        const updated = await updateTaskApi(editingTask.id, formData);
+        setTasks(prev => prev.map(t => t.id === updated.id ? updated : t));
+        toast.success('Cập nhật công việc thành công!');
+      } else {
+        await createTaskApi(formData);
+        toast.success('Tạo công việc mới thành công!');
+        fetchData();
+      }
+    } catch (err: any) {
+      toast.error(err.message || 'Lỗi thao tác công việc');
     }
   };
 
@@ -118,8 +125,9 @@ export function LeaderTaskManagementPage() {
     try {
       const updated = await updateTaskStatusApi(task.id, 'CANCELLED');
       setTasks(prev => prev.map(t => t.id === task.id ? updated : t));
+      toast.success(`Đã hủy công việc "${task.title}"`);
     } catch (err: any) {
-      alert(err.message || 'Không thể hủy công việc');
+      toast.error(err.message || 'Không thể hủy công việc');
     }
   };
 
@@ -154,7 +162,7 @@ export function LeaderTaskManagementPage() {
       <Sidebar />
 
       <div className="app-content">
-        <Header title="Quản lý Công việc Phòng ban" />
+        <Header title="Quản lý & Giao việc" />
 
         <main className="main-container">
           {error && <div className="page-error-banner">{error}</div>}

@@ -6,27 +6,20 @@ import { TaskCard } from '../../components/leader/TaskCard';
 import { TaskDetailModal } from '../../components/leader/TaskDetailModal';
 import { getMyTasksApi, updateTaskStatusApi, type TaskDTO, type TaskStatus } from '../../services/taskService';
 import { getProjectsApi, type ProjectDTO } from '../../services/projectService';
-import { 
-  getUserNotificationsApi, 
-  markNotificationAsReadApi, 
-  markAllNotificationsAsReadApi,
-  type NotificationDTO 
-} from '../../services/notificationService';
+
 import { useAuth } from '../../context/AuthContext';
+import toast from 'react-hot-toast';
 import { 
   FolderKanban, 
   Clock, 
   CheckCircle2, 
   AlertCircle, 
-  TrendingUp, 
-  Bell,
-  CheckCheck,
-  Crown,
-  UserCheck,
-  ChevronRight,
-  LayoutGrid,
-  List as ListIcon,
-  XCircle
+  UserCheck, 
+  ChevronRight, 
+  LayoutGrid, 
+  List as ListIcon, 
+  XCircle, 
+  Asterisk 
 } from 'lucide-react';
 import './EmployeeDashboardPage.css';
 
@@ -35,7 +28,6 @@ export function EmployeeDashboardPage() {
   const navigate = useNavigate();
   const [tasks, setTasks] = useState<TaskDTO[]>([]);
   const [projects, setProjects] = useState<ProjectDTO[]>([]);
-  const [notifications, setNotifications] = useState<NotificationDTO[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [viewMode, setViewMode] = useState<'KANBAN' | 'TABLE'>('KANBAN');
@@ -47,14 +39,12 @@ export function EmployeeDashboardPage() {
     setLoading(true);
     setError(null);
     try {
-      const [tasksData, projData, notifsData] = await Promise.all([
+      const [tasksData, projData] = await Promise.all([
         getMyTasksApi(),
         getProjectsApi(),
-        getUserNotificationsApi(),
       ]);
       setTasks(tasksData);
       setProjects(projData);
-      setNotifications(notifsData);
     } catch (err: any) {
       setError(err.message || 'Không thể tải dữ liệu nhiệm vụ');
     } finally {
@@ -70,26 +60,9 @@ export function EmployeeDashboardPage() {
     try {
       const updated = await updateTaskStatusApi(taskId, status);
       setTasks(prev => prev.map(t => t.id === taskId ? updated : t));
+      toast.success('Cập nhật trạng thái thành công');
     } catch (err: any) {
-      alert(err.message || 'Không thể cập nhật trạng thái');
-    }
-  };
-
-  const handleMarkAsRead = async (id: number) => {
-    try {
-      await markNotificationAsReadApi(id);
-      setNotifications(prev => prev.map(n => n.id === id ? { ...n, isRead: true } : n));
-    } catch (err: any) {
-      console.error(err);
-    }
-  };
-
-  const handleMarkAllAsRead = async () => {
-    try {
-      await markAllNotificationsAsReadApi();
-      setNotifications(prev => prev.map(n => ({ ...n, isRead: true })));
-    } catch (err: any) {
-      console.error(err);
+      toast.error(err.message || 'Không thể cập nhật trạng thái');
     }
   };
 
@@ -105,27 +78,34 @@ export function EmployeeDashboardPage() {
   const pendingCount = tasks.filter(t => t.status === 'PENDING').length;
   const inProgressCount = tasks.filter(t => t.status === 'IN_PROGRESS').length;
   const completedCount = tasks.filter(t => t.status === 'COMPLETED').length;
-  const unreadNotifs = notifications.filter(n => !n.isRead);
 
   return (
     <div className="app-layout">
       <Sidebar />
       
       <div className="app-content">
-        <Header title={`Không gian làm việc ${user?.departmentName ? `- ${user.departmentName}` : ''}`} />
+        <Header title="Tổng quan" />
 
         <main className="main-container">
           {error && <div className="page-error-banner">{error}</div>}
 
           {/* Quick Header Banner */}
           <div className="dashboard-banner employee-theme">
-            <div className="banner-text">
-              <h2>Xin chào, {user?.fullName}! 👋</h2>
-              <p>
-                {managedProjects.length > 0 
-                  ? `Bạn đang là Trưởng dự án (${managedProjects.length} dự án) và Thành viên thực hiện (${employeeProjects.length} dự án).`
-                  : 'Dưới đây là danh sách và tiến độ các công việc được giao cho bạn.'}
-              </p>
+            <div className="banner-content">
+              <div className="banner-greeting">
+                <h2>Xin chào, <span className="user-name-highlight">{user?.fullName}</span>!</h2>
+              </div>
+              
+              <div className="banner-note-box">
+                <span className="note-asterisk">
+                  <Asterisk size={15} className="asterisk-icon" />
+                </span>
+                <span className="note-text">
+                  {managedProjects.length > 0 
+                    ? `Vai trò: Trưởng dự án (${managedProjects.length} dự án) / Thành viên thực hiện (${employeeProjects.length} dự án).`
+                    : 'Dưới đây là danh sách và tiến độ các công việc được giao cho bạn.'}
+                </span>
+              </div>
             </div>
           </div>
 
@@ -134,11 +114,7 @@ export function EmployeeDashboardPage() {
             <div style={{ marginBottom: '2rem' }}>
               <div className="section-header" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '1rem' }}>
                 <h3 className="section-title" style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', margin: 0, color: 'var(--color-text-primary)' }}>
-                  <Crown size={20} style={{ color: '#eab308' }} />
-                  Dự án bạn quản lý (Vai trò Leader)
-                  <span className="task-count-badge" style={{ background: '#fef08a', color: '#854d0e', marginLeft: '0.5rem' }}>
-                    {managedProjects.length} dự án
-                  </span>
+                  Dự án bạn quản lý: {managedProjects.length}
                 </h3>
                 <button 
                   className="btn-secondary" 
@@ -199,55 +175,49 @@ export function EmployeeDashboardPage() {
           <div className="section-header" style={{ marginBottom: '1rem' }}>
             <h3 className="section-title" style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', margin: 0 }}>
               <FolderKanban size={20} className="text-accent" />
-              Công việc được giao cho bạn (Vai trò Employee)
+              Công việc được giao
             </h3>
           </div>
 
-          {/* Stat Cards Grid */}
-          <div className="stat-cards-grid">
-            <div className="stat-card">
-              <div className="stat-card-header">
-                <span className="stat-label">NHIỆM VỤ ĐƯỢC GIAO</span>
-                <div className="stat-icon total"><FolderKanban size={20} /></div>
+          {/* Compact Horizontal Stat Cards Row */}
+          <div className="compact-stat-row">
+            <div className="compact-stat-card">
+              <div className="compact-stat-icon total">
+                <FolderKanban size={18} />
               </div>
-              <div className="stat-value">{tasks.length}</div>
-              <div className="stat-footer">
-                <span className="stat-trend positive"><TrendingUp size={14} /> Nhiệm vụ cá nhân</span>
-              </div>
-            </div>
-
-            <div className="stat-card">
-              <div className="stat-card-header">
-                <span className="stat-label">CHƯA THỰC HIỆN</span>
-                <div className="stat-icon pending"><AlertCircle size={20} /></div>
-              </div>
-              <div className="stat-value">{pendingCount}</div>
-              <div className="stat-footer">
-                <span className="stat-subtext">Cần bắt đầu xử lý</span>
+              <div className="compact-stat-info">
+                <span className="compact-stat-label">Nhiệm vụ được giao</span>
+                <span className="compact-stat-value">{tasks.length}</span>
               </div>
             </div>
 
-            <div className="stat-card">
-              <div className="stat-card-header">
-                <span className="stat-label">ĐANG THỰC HIỆN</span>
-                <div className="stat-icon in-progress"><Clock size={20} /></div>
+            <div className="compact-stat-card">
+              <div className="compact-stat-icon pending">
+                <AlertCircle size={18} />
               </div>
-              <div className="stat-value">{inProgressCount}</div>
-              <div className="stat-footer">
-                <span className="stat-subtext">Đang trong tiến trình</span>
+              <div className="compact-stat-info">
+                <span className="compact-stat-label">Chưa thực hiện</span>
+                <span className="compact-stat-value">{pendingCount}</span>
               </div>
             </div>
 
-            <div className="stat-card">
-              <div className="stat-card-header">
-                <span className="stat-label">HOÀN THÀNH</span>
-                <div className="stat-icon completed"><CheckCircle2 size={20} /></div>
+            <div className="compact-stat-card">
+              <div className="compact-stat-icon in-progress">
+                <Clock size={18} />
               </div>
-              <div className="stat-value">{completedCount}</div>
-              <div className="stat-footer">
-                <span className="stat-trend positive">
-                  {tasks.length > 0 ? Math.round((completedCount / tasks.length) * 100) : 0}% hoàn thành
-                </span>
+              <div className="compact-stat-info">
+                <span className="compact-stat-label">Đang thực hiện</span>
+                <span className="compact-stat-value">{inProgressCount}</span>
+              </div>
+            </div>
+
+            <div className="compact-stat-card">
+              <div className="compact-stat-icon completed">
+                <CheckCircle2 size={18} />
+              </div>
+              <div className="compact-stat-info">
+                <span className="compact-stat-label">Hoàn thành</span>
+                <span className="compact-stat-value">{completedCount}</span>
               </div>
             </div>
           </div>
@@ -280,10 +250,10 @@ export function EmployeeDashboardPage() {
                 <div className="loading-state">Đang tải công việc cá nhân...</div>
               ) : tasks.length === 0 ? (
                 <div className="empty-state">
-                  <p>Hiện tại bạn chưa được giao công việc nào.</p>
+                  <p>Chưa có công việc được giao.</p>
                 </div>
               ) : viewMode === 'KANBAN' ? (
-                <div className="kanban-board" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))' }}>
+                <div className="kanban-board">
                   <div className="kanban-column">
                     <div className="column-header pending">
                       <span className="col-title"><AlertCircle size={14} /> CHƯA LÀM</span>
@@ -389,37 +359,6 @@ export function EmployeeDashboardPage() {
               )}
             </div>
 
-            {/* Notifications Sidebar */}
-            <div className="notifications-sidebar">
-              <div className="section-header">
-                <h3 className="section-title">
-                  <Bell size={18} /> Thông báo mới ({unreadNotifs.length})
-                </h3>
-                {unreadNotifs.length > 0 && (
-                  <button className="btn-mark-all" onClick={handleMarkAllAsRead} title="Đọc tất cả">
-                    <CheckCheck size={14} /> Đọc tất cả
-                  </button>
-                )}
-              </div>
-
-              <div className="notifications-list">
-                {notifications.length === 0 ? (
-                  <p className="no-notifications">Chưa có thông báo nào.</p>
-                ) : (
-                  notifications.slice(0, 5).map((notif) => (
-                    <div 
-                      key={notif.id} 
-                      className={`notif-item ${notif.isRead ? 'read' : 'unread'}`}
-                      onClick={() => !notif.isRead && handleMarkAsRead(notif.id)}
-                    >
-                      <div className="notif-title">{notif.title}</div>
-                      <div className="notif-message">{notif.message}</div>
-                      <div className="notif-time">{new Date(notif.createdAt).toLocaleString('vi-VN')}</div>
-                    </div>
-                  ))
-                )}
-              </div>
-            </div>
           </div>
         </main>
       </div>

@@ -27,6 +27,9 @@ import org.springframework.transaction.annotation.Transactional;
 import java.util.*;
 import java.util.stream.Collectors;
 
+/**
+ * Implementation of {@link ProjectService} managing project lifecycles and team memberships.
+ */
 @Slf4j
 @Service
 @RequiredArgsConstructor
@@ -37,6 +40,9 @@ public class ProjectServiceImpl implements ProjectService {
     private final UserRepository userRepository;
     private final ProjectMemberRepository projectMemberRepository;
 
+    /**
+     * {@inheritDoc}
+     */
     @Override
     @Transactional(readOnly = true)
     public List<ProjectResponse> getAllProjects(Long departmentId, UserPrincipal currentUser) {
@@ -65,6 +71,9 @@ public class ProjectServiceImpl implements ProjectService {
         return projects.stream().map(this::mapToResponse).collect(Collectors.toList());
     }
 
+    /**
+     * {@inheritDoc}
+     */
     @Override
     @Transactional(readOnly = true)
     public ProjectResponse getProjectById(Long id, UserPrincipal currentUser) {
@@ -89,6 +98,9 @@ public class ProjectServiceImpl implements ProjectService {
         return mapToResponse(project);
     }
 
+    /**
+     * {@inheritDoc}
+     */
     @Override
     @Transactional
     public ProjectResponse createProject(CreateProjectRequest request) {
@@ -114,6 +126,9 @@ public class ProjectServiceImpl implements ProjectService {
         return mapToResponse(saved);
     }
 
+    /**
+     * {@inheritDoc}
+     */
     @Override
     @Transactional
     public ProjectResponse updateProject(Long id, UpdateProjectRequest request) {
@@ -142,6 +157,9 @@ public class ProjectServiceImpl implements ProjectService {
         return mapToResponse(updated);
     }
 
+    /**
+     * {@inheritDoc}
+     */
     @Override
     @Transactional
     public void deleteProject(Long id) {
@@ -151,6 +169,16 @@ public class ProjectServiceImpl implements ProjectService {
         projectRepository.delete(project);
     }
 
+    /**
+     * Constructs a set of {@link ProjectMember} entities based on member/manager lists and validates department membership.
+     *
+     * @param project the project instance
+     * @param projectMemberRequests explicit member role requests
+     * @param memberIds list of user IDs for employees
+     * @param managerIds list of user IDs for leaders
+     * @param department the project's department
+     * @return a set of populated project member entities
+     */
     private Set<ProjectMember> buildProjectMembers(Project project, List<ProjectMemberRequest> projectMemberRequests,
             List<Long> memberIds, List<Long> managerIds, Department department) {
         Map<Long, ProjectRoleEnum> userRoleMap = new HashMap<>();
@@ -197,6 +225,12 @@ public class ProjectServiceImpl implements ProjectService {
         return projectMembers;
     }
 
+    /**
+     * Maps a {@link Project} entity to a {@link ProjectResponse} DTO.
+     *
+     * @param project the project entity
+     * @return the mapped project response DTO
+     */
     private ProjectResponse mapToResponse(Project project) {
         List<ProjectMemberDto> memberDtos = (project.getProjectMembers() != null)
                 ? project.getProjectMembers().stream()

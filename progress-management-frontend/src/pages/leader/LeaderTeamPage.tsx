@@ -39,7 +39,7 @@ export function LeaderTeamPage() {
       <Sidebar />
 
       <div className="app-content">
-        <Header title="Thành viên Nhóm / Phòng ban" />
+        <Header title="Thành viên Nhóm" />
 
         <main className="main-container">
           {error && <div className="page-error-banner">{error}</div>}

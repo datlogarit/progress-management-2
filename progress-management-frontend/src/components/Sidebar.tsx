@@ -1,5 +1,7 @@
+import { useState, useEffect } from 'react';
 import { NavLink } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
+import { getProjectsApi } from '../services/projectService';
 import { 
   LayoutDashboard, 
   Users, 
@@ -12,9 +14,35 @@ import {
 import './Sidebar.css';
 
 export function Sidebar() {
-  const { hasPermission } = useAuth();
+  const { user, hasPermission } = useAuth();
   const isAdmin = hasPermission('SYSTEM_MANAGE');
-  const isLeader = hasPermission('TASK_ASSIGN') && !isAdmin;
+  const [hasManagedProjects, setHasManagedProjects] = useState<boolean>(false);
+
+  useEffect(() => {
+    if (isAdmin || !user) {
+      setHasManagedProjects(false);
+      return;
+    }
+
+    let isMounted = true;
+    getProjectsApi()
+      .then(projects => {
+        if (!isMounted) return;
+        const isLeaderOfAny = (projects || []).some(p => 
+          p.members?.some(m => String(m.id) === String(user.id) && String(m.projectRole).toUpperCase() === 'LEADER')
+        );
+        setHasManagedProjects(isLeaderOfAny);
+      })
+      .catch(err => {
+        console.error('Error checking managed projects in Sidebar:', err);
+      });
+
+    return () => {
+      isMounted = false;
+    };
+  }, [user, isAdmin]);
+
+  const isLeader = (isAdmin || hasManagedProjects);
 
   return (
     <aside className="app-sidebar">
@@ -87,21 +115,25 @@ export function Sidebar() {
               <span>Trang chủ</span>
             </NavLink>
 
-            <NavLink 
-              to="/leader/tasks" 
-              className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`}
-            >
-              <FolderKanban size={18} className="nav-icon" />
-              <span>Quản lý & Giao việc</span>
-            </NavLink>
+            {hasManagedProjects && (
+              <NavLink 
+                to="/leader/tasks" 
+                className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`}
+              >
+                <FolderKanban size={18} className="nav-icon" />
+                <span>Quản lý & Giao việc</span>
+              </NavLink>
+            )}
 
-            <NavLink 
-              to="/leader/team" 
-              className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`}
-            >
-              <UserCheck size={18} className="nav-icon" />
-              <span>Thành viên Nhóm</span>
-            </NavLink>
+            {hasManagedProjects && (
+              <NavLink 
+                to="/leader/team" 
+                className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`}
+              >
+                <UserCheck size={18} className="nav-icon" />
+                <span>Thành viên Nhóm</span>
+              </NavLink>
+            )}
           </>
         )}
       </nav>

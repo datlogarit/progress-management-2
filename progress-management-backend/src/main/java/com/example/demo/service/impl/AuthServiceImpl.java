@@ -29,6 +29,9 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+/**
+ * Implementation of {@link AuthService} handling authentication, registration, and credential security.
+ */
 @Slf4j
 @Service
 @RequiredArgsConstructor
@@ -41,6 +44,9 @@ public class AuthServiceImpl implements AuthService {
     private final PasswordEncoder passwordEncoder;
     private final JwtTokenProvider tokenProvider;
 
+    /**
+     * {@inheritDoc}
+     */
     @Override
     @Transactional
     public AuthResponse login(LoginRequest request) {
@@ -71,6 +77,9 @@ public class AuthServiceImpl implements AuthService {
                 .build();
     }
 
+    /**
+     * {@inheritDoc}
+     */
     @Override
     @Transactional
     public AuthResponse register(RegisterRequest request) {
@@ -117,6 +126,9 @@ public class AuthServiceImpl implements AuthService {
                 .build();
     }
 
+    /**
+     * {@inheritDoc}
+     */
     @Override
     @Transactional
     public void changePassword(Long userId, ChangePasswordRequest request) {
@@ -137,6 +149,9 @@ public class AuthServiceImpl implements AuthService {
         userRepository.save(user);
     }
 
+    /**
+     * {@inheritDoc}
+     */
     @Override
     @Transactional(readOnly = true)
     public UserResponse getCurrentUser(Long userId) {
@@ -145,6 +160,12 @@ public class AuthServiceImpl implements AuthService {
         return mapToUserResponse(user);
     }
 
+    /**
+     * Maps a {@link User} entity to a {@link UserResponse} DTO.
+     *
+     * @param user the user entity
+     * @return the mapped user response DTO
+     */
     private UserResponse mapToUserResponse(User user) {
         String roleStr = Boolean.TRUE.equals(user.getIsAdmin()) ? "ADMIN" : "USER";
         java.util.List<String> permissions = Boolean.TRUE.equals(user.getIsAdmin())

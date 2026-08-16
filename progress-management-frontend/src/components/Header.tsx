@@ -7,8 +7,10 @@ import {
   getUnreadNotificationCountApi, 
   markNotificationAsReadApi, 
   markAllNotificationsAsReadApi,
+  subscribeToNotifications,
   type NotificationDTO 
 } from '../services/notificationService';
+import toast from 'react-hot-toast';
 import './Header.css';
 
 interface HeaderProps {
@@ -24,6 +26,7 @@ export function Header({ title }: HeaderProps) {
   const dropdownRef = useRef<HTMLDivElement>(null);
 
   const fetchNotifications = async () => {
+    if (user?.role === 'ADMIN') return;
     try {
       const count = await getUnreadNotificationCountApi();
       setUnreadCount(count);
@@ -33,10 +36,39 @@ export function Header({ title }: HeaderProps) {
   };
 
   useEffect(() => {
+    if (user?.role === 'ADMIN') return;
+    
+    // Fetch count initially
     fetchNotifications();
-    const interval = setInterval(fetchNotifications, 15000); // refresh every 15s
-    return () => clearInterval(interval);
-  }, []);
+
+    // Subscribe to SSE
+    const unsubscribe = subscribeToNotifications(
+      (newNotification) => {
+        // Increment unread count
+        setUnreadCount(prev => prev + 1);
+        
+        // Add to list if list is open or loaded
+        setNotifications(prev => [newNotification, ...prev]);
+
+        // Show toast
+        toast.success(`Thông báo mới: ${newNotification.title}`, {
+          icon: '🔔',
+          duration: 4000
+        });
+      },
+      (error) => {
+        console.log('SSE Error, falling back to polling...', error);
+      }
+    );
+
+    // Optional: fallback polling every 30s in case SSE fails
+    const interval = setInterval(fetchNotifications, 30000); 
+
+    return () => {
+      unsubscribe();
+      clearInterval(interval);
+    };
+  }, [user]);
 
   const handleToggleNotifications = async () => {
     if (!showNotifications) {
@@ -111,60 +143,62 @@ export function Header({ title }: HeaderProps) {
 
       <div className="header-user-section">
         {/* Notification Bell Icon */}
-        <div className="notification-wrapper" ref={dropdownRef}>
-          <button 
-            className={`notification-btn ${showNotifications ? 'active' : ''}`} 
-            onClick={handleToggleNotifications}
-            title="Thông báo"
-          >
-            <Bell size={20} />
-            {unreadCount > 0 && (
-              <span className="notification-badge">
-                {unreadCount > 99 ? '99+' : unreadCount}
-              </span>
-            )}
-          </button>
+        {user?.role !== 'ADMIN' && (
+          <div className="notification-wrapper" ref={dropdownRef}>
+            <button 
+              className={`notification-btn ${showNotifications ? 'active' : ''}`} 
+              onClick={handleToggleNotifications}
+              title="Thông báo"
+            >
+              <Bell size={20} />
+              {unreadCount > 0 && (
+                <span className="notification-badge">
+                  {unreadCount > 99 ? '99+' : unreadCount}
+                </span>
+              )}
+            </button>
 
-          {showNotifications && (
-            <div className="notification-dropdown">
-              <div className="dropdown-header">
-                <span className="dropdown-title">Thông báo hệ thống</span>
-                {unreadCount > 0 && (
-                  <button className="mark-all-btn" onClick={handleMarkAllAsRead}>
-                    <CheckCheck size={14} /> Đánh dấu đã đọc
-                  </button>
-                )}
-              </div>
+            {showNotifications && (
+              <div className="notification-dropdown">
+                <div className="dropdown-header">
+                  <span className="dropdown-title">Thông báo hệ thống</span>
+                  {unreadCount > 0 && (
+                    <button className="mark-all-btn" onClick={handleMarkAllAsRead}>
+                      <CheckCheck size={14} /> Đánh dấu đã đọc
+                    </button>
+                  )}
+                </div>
 
-              <div className="dropdown-body">
-                {notifications.length === 0 ? (
-                  <div className="empty-notifications">Chưa có thông báo nào</div>
-                ) : (
-                  notifications.map(item => (
-                    <div 
-                      key={item.id} 
-                      className={`notif-item ${!item.isRead ? 'unread' : ''}`}
-                      onClick={() => handleNotificationClick(item)}
-                      style={{ cursor: item.taskId ? 'pointer' : 'default' }}
-                    >
-                      <div className="notif-icon-wrapper">
-                        {getNotificationIcon(item.type)}
-                      </div>
-                      <div className="notif-content">
-                        <div className="notif-title">{item.title}</div>
-                        <div className="notif-message">{item.message}</div>
-                        <div className="notif-time">
-                          {new Date(item.createdAt).toLocaleString('vi-VN')}
+                <div className="dropdown-body">
+                  {notifications.length === 0 ? (
+                    <div className="empty-notifications">Chưa có thông báo nào</div>
+                  ) : (
+                    notifications.map(item => (
+                      <div 
+                        key={item.id} 
+                        className={`notif-item ${!item.isRead ? 'unread' : ''}`}
+                        onClick={() => handleNotificationClick(item)}
+                        style={{ cursor: item.taskId ? 'pointer' : 'default' }}
+                      >
+                        <div className="notif-icon-wrapper">
+                          {getNotificationIcon(item.type)}
                         </div>
+                        <div className="notif-content">
+                          <div className="notif-title">{item.title}</div>
+                          <div className="notif-message">{item.message}</div>
+                          <div className="notif-time">
+                            {new Date(item.createdAt).toLocaleString('vi-VN')}
+                          </div>
+                        </div>
+                        {!item.isRead && <span className="unread-dot" />}
                       </div>
-                      {!item.isRead && <span className="unread-dot" />}
-                    </div>
-                  ))
-                )}
+                    ))
+                  )}
+                </div>
               </div>
-            </div>
-          )}
-        </div>
+            )}
+          </div>
+        )}
 
         <div className="user-profile-badge">
           <div className="user-avatar">

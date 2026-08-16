@@ -96,9 +96,21 @@
 /* Kanban View */
 .kanban-board {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+  grid-template-columns: repeat(4, 1fr);
   gap: 16px;
-  align-items: start;
+  align-items: stretch;
+}
+
+@media (max-width: 1024px) {
+  .kanban-board {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+@media (max-width: 640px) {
+  .kanban-board {
+    grid-template-columns: 1fr;
+  }
 }
 
 .kanban-column {
@@ -109,7 +121,8 @@
   display: flex;
   flex-direction: column;
   gap: 16px;
-  min-height: 500px;
+  min-height: 120px;
+  height: 100%;
 }
 
 .column-header {

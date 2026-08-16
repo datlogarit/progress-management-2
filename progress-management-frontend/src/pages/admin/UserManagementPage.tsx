@@ -1,4 +1,6 @@
 import React, { useEffect, useState } from 'react';
+import { useSearchParams } from 'react-router-dom';
+import toast from 'react-hot-toast';
 import { AdminLayout } from './AdminLayout';
 import { Modal } from '../../components/Modal';
 import { 
@@ -13,6 +15,8 @@ import {
 import { getAllDepartmentsApi } from '../../services/departmentService';
 import type { DepartmentDTO } from '../../services/departmentService';
 import type { UserDTO } from '../../services/authService';
+import { getProjectsApi, type ProjectDTO } from '../../services/projectService';
+import { getAllTeamsApi, type TeamDTO } from '../../services/teamService';
 import { 
   UserPlus, 
   Search, 
@@ -22,21 +26,26 @@ import {
   Edit3, 
   CheckCircle, 
   XCircle, 
-  Filter 
+  FolderKanban,
+  Users
 } from 'lucide-react';
 import './UserManagementPage.css';
 
 export function UserManagementPage() {
+  const [searchParams] = useSearchParams();
+  const initialProjectId = searchParams.get('projectId') || 'ALL';
+
   const [users, setUsers] = useState<UserDTO[]>([]);
   const [departments, setDepartments] = useState<DepartmentDTO[]>([]);
+  const [teams, setTeams] = useState<TeamDTO[]>([]);
+  const [projects, setProjects] = useState<ProjectDTO[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
-  const [error, setError] = useState<string | null>(null);
-  const [successMsg, setSuccessMsg] = useState<string | null>(null);
 
   // Search & Filter State
   const [searchKeyword, setSearchKeyword] = useState<string>('');
+  const [filterTeamId, setFilterTeamId] = useState<string>('ALL');
   const [filterDepartmentId, setFilterDepartmentId] = useState<string>('ALL');
-  const [filterRole, setFilterRole] = useState<string>('ALL');
+  const [filterProjectId, setFilterProjectId] = useState<string>(initialProjectId);
 
   // Modals state
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
@@ -72,18 +81,21 @@ export function UserManagementPage() {
   const fetchData = async () => {
     try {
       setLoading(true);
-      setError(null);
-      const [usersData, deptsData] = await Promise.all([
+      const [usersData, deptsData, projsData, teamsData] = await Promise.all([
         getAllUsersApi(),
         getAllDepartmentsApi(),
+        getProjectsApi(),
+        getAllTeamsApi(),
       ]);
       setUsers(usersData);
       setDepartments(deptsData);
+      setProjects(projsData);
+      setTeams(teamsData);
     } catch (err: unknown) {
       if (err instanceof Error) {
-        setError(err.message);
+        toast.error(err.message);
       } else {
-        setError('Không thể tải danh sách tài khoản');
+        toast.error('Không thể tải danh sách tài khoản');
       }
     } finally {
       setLoading(false);
@@ -94,12 +106,6 @@ export function UserManagementPage() {
     fetchData();
   }, []);
 
-  // Display notification message
-  const showSuccess = (msg: string) => {
-    setSuccessMsg(msg);
-    setTimeout(() => setSuccessMsg(null), 4000);
-  };
-
   // Filtered Users
   const filteredUsers = users.filter((u) => {
     const matchesKeyword = 
@@ -107,22 +113,32 @@ export function UserManagementPage() {
       u.username.toLowerCase().includes(searchKeyword.toLowerCase()) ||
       u.email.toLowerCase().includes(searchKeyword.toLowerCase());
 
+    const userDept = departments.find((d) => d.id === u.departmentId);
+
     const matchesDept = 
       filterDepartmentId === 'ALL' || 
       (filterDepartmentId === 'NONE' && u.departmentId === null) ||
       u.departmentId?.toString() === filterDepartmentId;
 
-    const matchesRole = 
-      filterRole === 'ALL' || u.role === filterRole;
+    const matchesTeam = 
+      filterTeamId === 'ALL' ||
+      (filterTeamId === 'NONE' && (!userDept || !userDept.teamId)) ||
+      userDept?.teamId?.toString() === filterTeamId;
 
-    return matchesKeyword && matchesDept && matchesRole;
+    const matchesProject = () => {
+      if (filterProjectId === 'ALL') return true;
+      const targetProj = projects.find((p) => p.id.toString() === filterProjectId);
+      if (!targetProj || !targetProj.members) return false;
+      return targetProj.members.some((m) => m.username === u.username || m.id === u.id);
+    };
+
+    return matchesKeyword && matchesDept && matchesTeam && matchesProject();
   });
 
   // Action Handlers
   const handleCreateUser = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
-      setError(null);
       await createUserApi({
         username: createForm.username,
         email: createForm.email,
@@ -140,10 +156,10 @@ export function UserManagementPage() {
         role: 'EMPLOYEE',
         departmentId: '',
       });
-      showSuccess('Tạo tài khoản người dùng mới thành công!');
+      toast.success('Tạo tài khoản người dùng mới thành công!');
       fetchData();
     } catch (err: unknown) {
-      if (err instanceof Error) setError(err.message);
+      if (err instanceof Error) toast.error(err.message);
     }
   };
 
@@ -161,10 +177,9 @@ export function UserManagementPage() {
     e.preventDefault();
     if (!selectedUser) return;
     try {
-      setError(null);
       await updateUserApi(selectedUser.id, editForm);
       setIsEditModalOpen(false);
-      showSuccess(`Cập nhật tài khoản ${selectedUser.username} thành công!`);
+      toast.success(`Cập nhật tài khoản ${selectedUser.username} thành công!`);
       fetchData();
     } catch (err: unknown) {
       if (err instanceof Error) {
@@ -187,7 +202,7 @@ export function UserManagementPage() {
             return;
           }
         }
-        setError(err.message);
+        toast.error(err.message);
       }
     }
   };
@@ -202,64 +217,36 @@ export function UserManagementPage() {
     e.preventDefault();
     if (!selectedUser) return;
     try {
-      setError(null);
       await resetPasswordApi(selectedUser.id, { newPassword: resetPwdInput });
       setIsResetPwdModalOpen(false);
-      showSuccess(`Đã đặt lại mật khẩu cho tài khoản ${selectedUser.username}!`);
+      toast.success(`Đã đặt lại mật khẩu cho tài khoản ${selectedUser.username}!`);
     } catch (err: unknown) {
-      if (err instanceof Error) setError(err.message);
+      if (err instanceof Error) toast.error(err.message);
     }
   };
 
-  const handleRoleChange = async (targetUser: UserDTO, newRole: 'ADMIN' | 'LEADER' | 'EMPLOYEE') => {
-    if (targetUser.role === newRole) return;
 
-    if (targetUser.role === 'EMPLOYEE' && newRole === 'LEADER') {
-      const candidates = users.filter(
-        (u) => u.departmentId === targetUser.departmentId && u.role === 'EMPLOYEE' && u.id !== targetUser.id
-      );
-
-      if (candidates.length > 0) {
-        setReassignActionType('PROMOTE');
-        setTargetUserForReassign(targetUser);
-        setReplacementCandidates(candidates);
-        setSelectedReplacementId(candidates[0].id);
-        setIsReassignModalOpen(true);
-        return;
-      }
-    }
-
-    try {
-      setError(null);
-      await assignRoleApi(targetUser.id, { role: newRole });
-      showSuccess('Cập nhật vai trò (Role) thành công!');
-      fetchData();
-    } catch (err: unknown) {
-      if (err instanceof Error) setError(err.message);
-    }
-  };
 
   const handleConfirmReassignment = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!targetUserForReassign || !selectedReplacementId) return;
     try {
-      setError(null);
       if (reassignActionType === 'PROMOTE') {
         await assignRoleApi(targetUserForReassign.id, {
           role: 'LEADER',
           reassignToUserId: selectedReplacementId,
         });
-        showSuccess(`Đã nâng cấp ${targetUserForReassign.fullName} thành Trưởng phòng và bàn giao công việc thành công!`);
+        toast.success(`Đã nâng cấp ${targetUserForReassign.fullName} thành Trưởng phòng và bàn giao công việc thành công!`);
       } else if (reassignActionType === 'INACTIVATE') {
         if (!pendingUpdateForm) return;
         await updateUserApi(targetUserForReassign.id, {
           ...pendingUpdateForm,
           reassignToUserId: selectedReplacementId,
         });
-        showSuccess(`Đã khóa tài khoản ${targetUserForReassign.username} và bàn giao công việc thành công!`);
+        toast.success(`Đã khóa tài khoản ${targetUserForReassign.username} và bàn giao công việc thành công!`);
       } else if (reassignActionType === 'DELETE') {
         await deleteUserApi(targetUserForReassign.id, selectedReplacementId);
-        showSuccess(`Đã bàn giao công việc và xóa tài khoản ${targetUserForReassign.username}!`);
+        toast.success(`Đã bàn giao công việc và xóa tài khoản ${targetUserForReassign.username}!`);
       }
 
       setIsReassignModalOpen(false);
@@ -267,19 +254,18 @@ export function UserManagementPage() {
       setPendingUpdateForm(null);
       fetchData();
     } catch (err: unknown) {
-      if (err instanceof Error) setError(err.message);
+      if (err instanceof Error) toast.error(err.message);
     }
   };
 
   const handleDepartmentChange = async (userId: number, deptIdStr: string) => {
     try {
-      setError(null);
       const deptId = deptIdStr === '' ? null : Number(deptIdStr);
       await assignDepartmentApi(userId, { departmentId: deptId });
-      showSuccess('Gán phòng ban thành công!');
+      toast.success('Gán phòng ban thành công!');
       fetchData();
     } catch (err: unknown) {
-      if (err instanceof Error) setError(err.message);
+      if (err instanceof Error) toast.error(err.message);
     }
   };
 
@@ -288,9 +274,8 @@ export function UserManagementPage() {
       return;
     }
     try {
-      setError(null);
       await deleteUserApi(u.id);
-      showSuccess(`Đã xóa tài khoản ${u.username}!`);
+      toast.success(`Đã xóa tài khoản ${u.username}!`);
       fetchData();
     } catch (err: unknown) {
       if (err instanceof Error) {
@@ -311,7 +296,7 @@ export function UserManagementPage() {
             return;
           }
         }
-        setError(err.message);
+        toast.error(err.message);
       }
     }
   };
@@ -319,9 +304,6 @@ export function UserManagementPage() {
   return (
     <AdminLayout title="Quản lý Tài khoản & Phân quyền">
       <div className="page-container">
-        {/* Banner Alert Messages */}
-        {successMsg && <div className="alert-banner success">{successMsg}</div>}
-        {error && <div className="alert-banner danger">{error}</div>}
 
         {/* Toolbar Header */}
         <div className="toolbar-panel">
@@ -337,15 +319,18 @@ export function UserManagementPage() {
             </div>
 
             <div className="filter-select-box">
-              <Filter size={16} className="filter-icon" />
+              <Users size={16} className="filter-icon" />
               <select
-                value={filterRole}
-                onChange={(e) => setFilterRole(e.target.value)}
+                value={filterTeamId}
+                onChange={(e) => setFilterTeamId(e.target.value)}
               >
-                <option value="ALL">Tất cả Vai trò</option>
-                <option value="ADMIN">ADMIN</option>
-                <option value="LEADER">LEADER</option>
-                <option value="EMPLOYEE">EMPLOYEE</option>
+                <option value="ALL">Tất cả Đội nhóm</option>
+                <option value="NONE">Chưa phân Đội nhóm</option>
+                {teams.map((t) => (
+                  <option key={t.id} value={t.id.toString()}>
+                    {t.name}
+                  </option>
+                ))}
               </select>
             </div>
 
@@ -360,6 +345,21 @@ export function UserManagementPage() {
                 {departments.map((d) => (
                   <option key={d.id} value={d.id.toString()}>
                     {d.name}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            <div className="filter-select-box">
+              <FolderKanban size={16} className="filter-icon" />
+              <select
+                value={filterProjectId}
+                onChange={(e) => setFilterProjectId(e.target.value)}
+              >
+                <option value="ALL">Tất cả Dự án</option>
+                {projects.map((p) => (
+                  <option key={p.id} value={p.id.toString()}>
+                    {p.name} ({p.departmentName})
                   </option>
                 ))}
               </select>
@@ -384,135 +384,125 @@ export function UserManagementPage() {
                     <th>STT</th>
                     <th>Họ và Tên / Username</th>
                     <th>Email</th>
-                    <th>Vai trò (Gán quyền)</th>
+                    <th>Đội nhóm (Team)</th>
                     <th>Phòng ban (Gán PB)</th>
                     <th>Trạng thái</th>
                     <th className="text-center">Thao tác</th>
                   </tr>
                 </thead>
                 <tbody>
-                  {filteredUsers.map((u, idx) => (
-                    <tr key={u.id}>
-                      <td>{idx + 1}</td>
-                      <td>
-                        <div className="user-name-cell">
-                          <span className="user-fullname">{u.fullName}</span>
-                          <span className="user-username">@{u.username}</span>
-                        </div>
-                      </td>
-                      <td className="text-secondary">{u.email}</td>
-                      <td>
-                        {u.role === 'ADMIN' ? (
-                          <span className="select-badge role-admin" style={{ opacity: 0.85, cursor: 'not-allowed', display: 'inline-block', padding: '4px 10px' }}>
-                            ADMIN
+                  {filteredUsers.map((u, idx) => {
+                    const userDept = departments.find((d) => d.id === u.departmentId);
+                    const userTeamName = userDept?.teamName;
+
+                    return (
+                      <tr key={u.id}>
+                        <td>{idx + 1}</td>
+                        <td>
+                          <div className="user-name-cell">
+                            <span className="user-fullname">{u.fullName}</span>
+                            <span className="user-username">@{u.username}</span>
+                          </div>
+                        </td>
+                        <td className="text-secondary">{u.email}</td>
+                        <td>
+                          <span className={`user-team-badge ${userTeamName ? 'has-team' : 'no-team'}`}>
+                            <Users size={12} />
+                            {userTeamName || 'Chưa gán đội'}
                           </span>
-                        ) : (
-                          <select
-                            className={`select-badge role-${u.role.toLowerCase()}`}
-                            value={u.role}
-                            onChange={(e) =>
-                              handleRoleChange(
-                                u,
-                                e.target.value as 'LEADER' | 'EMPLOYEE'
-                              )
-                            }
-                          >
-                            <option value="LEADER">LEADER</option>
-                            <option value="EMPLOYEE">EMPLOYEE</option>
-                          </select>
-                        )}
-                      </td>
-                      <td>
-                        {u.role === 'ADMIN' ? (
-                          <span className="text-secondary" style={{fontSize: '13px', color: 'var(--color-text-disabled)' }}>
-                            ADMIN
-                          </span>
-                        ) : (
-                          <select
-                            className="select-dept"
-                            value={u.departmentId ?? ''}
-                            onChange={(e) => handleDepartmentChange(u.id, e.target.value)}
-                          >
-                            <option value="">-- Chưa gán --</option>
-                            {departments.map((d) => (
-                              <option key={d.id} value={d.id}>
-                                {d.name}
-                              </option>
-                            ))}
-                          </select>
-                        )}
-                      </td>
-                      <td>
-                        <span className={`status-pill ${u.isActive ? 'active' : 'inactive'}`}>
-                          {u.isActive ? (
-                            <>
-                              <CheckCircle size={12} /> Hoạt động
-                            </>
+                        </td>
+                        <td>
+                          {u.role === 'ADMIN' ? (
+                            <span className="text-secondary" style={{ fontSize: '13px', color: 'var(--color-text-disabled)' }}>
+                              ADMIN
+                            </span>
                           ) : (
-                            <>
-                              <XCircle size={12} /> Tạm khóa
-                            </>
+                            <select
+                              className="select-dept"
+                              value={u.departmentId ?? ''}
+                              onChange={(e) => handleDepartmentChange(u.id, e.target.value)}
+                            >
+                              <option value="">-- Chưa gán --</option>
+                              {departments.map((d) => (
+                                <option key={d.id} value={d.id}>
+                                  {d.name}
+                                </option>
+                              ))}
+                            </select>
                           )}
-                        </span>
-                      </td>
-                      <td>
-                        {u.role === 'ADMIN' ? (
-                          <div className="action-buttons">
-                            <button
-                              className="btn-icon edit"
-                              disabled
-                              style={{ opacity: 0.35, cursor: 'not-allowed' }}
-                              title="Khóa: Không thể thao tác trên tài khoản Admin"
-                            >
-                              <Edit3 size={16} />
-                            </button>
-                            <button
-                              className="btn-icon key"
-                              disabled
-                              style={{ opacity: 0.35, cursor: 'not-allowed' }}
-                              title="Khóa: Không thể thao tác trên tài khoản Admin"
-                            >
-                              <Key size={16} />
-                            </button>
-                            <button
-                              className="btn-icon delete"
-                              disabled
-                              style={{ opacity: 0.35, cursor: 'not-allowed' }}
-                              title="Khóa: Không thể thao tác trên tài khoản Admin"
-                            >
-                              <Trash2 size={16} />
-                            </button>
-                          </div>
-                        ) : (
-                          <div className="action-buttons">
-                            <button
-                              className="btn-icon edit"
-                              onClick={() => handleOpenEditModal(u)}
-                              title="Sửa thông tin"
-                            >
-                              <Edit3 size={16} />
-                            </button>
+                        </td>
+                        <td>
+                          <span className={`status-pill ${u.isActive ? 'active' : 'inactive'}`}>
+                            {u.isActive ? (
+                              <>
+                                <CheckCircle size={12} /> Hoạt động
+                              </>
+                            ) : (
+                              <>
+                                <XCircle size={12} /> Tạm khóa
+                              </>
+                            )}
+                          </span>
+                        </td>
+                        <td>
+                          {u.role === 'ADMIN' ? (
+                            <div className="action-buttons">
+                              <button
+                                className="btn-icon edit"
+                                disabled
+                                style={{ opacity: 0.35, cursor: 'not-allowed' }}
+                                title="Khóa: Không thể thao tác trên tài khoản Admin"
+                              >
+                                <Edit3 size={16} />
+                              </button>
+                              <button
+                                className="btn-icon key"
+                                disabled
+                                style={{ opacity: 0.35, cursor: 'not-allowed' }}
+                                title="Khóa: Không thể thao tác trên tài khoản Admin"
+                              >
+                                <Key size={16} />
+                              </button>
+                              <button
+                                className="btn-icon delete"
+                                disabled
+                                style={{ opacity: 0.35, cursor: 'not-allowed' }}
+                                title="Khóa: Không thể thao tác trên tài khoản Admin"
+                              >
+                                <Trash2 size={16} />
+                              </button>
+                            </div>
+                          ) : (
+                            <div className="action-buttons">
+                              <button
+                                className="btn-icon edit"
+                                onClick={() => handleOpenEditModal(u)}
+                                title="Sửa thông tin"
+                              >
+                                <Edit3 size={16} />
+                              </button>
 
-                            <button
-                              className="btn-icon key"
-                              onClick={() => handleOpenResetPwd(u)}
-                              title="Reset mật khẩu"
-                            >
-                              <Key size={16} />
-                            </button>
+                              <button
+                                className="btn-icon key"
+                                onClick={() => handleOpenResetPwd(u)}
+                                title="Reset mật khẩu"
+                              >
+                                <Key size={16} />
+                              </button>
 
-                            <button
-                              className="btn-icon delete"
-                              onClick={() => handleDeleteUser(u)}
-                              title="Xóa tài khoản"
-                            >
-                              <Trash2 size={16} />
-                            </button>
-                          </div>
-                        )}
-                      </td>
-                    </tr>
-                  ))}
+                              <button
+                                className="btn-icon delete"
+                                onClick={() => handleDeleteUser(u)}
+                                title="Xóa tài khoản"
+                              >
+                                <Trash2 size={16} />
+                              </button>
+                            </div>
+                          )}
+                        </td>
+                      </tr>
+                    );
+                  })}
 
                   {filteredUsers.length === 0 && (
                     <tr>

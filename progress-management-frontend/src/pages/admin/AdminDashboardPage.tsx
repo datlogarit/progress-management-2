@@ -4,26 +4,34 @@ import { getAllUsersApi } from '../../services/userService';
 import { getAllDepartmentsApi } from '../../services/departmentService';
 import type { DepartmentDTO } from '../../services/departmentService';
 import type { UserDTO } from '../../services/authService';
-import { Users, Building2, Shield, UserCheck, UserX, Plus } from 'lucide-react';
-import { Link } from 'react-router-dom';
+import { Users, Building2, Shield, Plus } from 'lucide-react';
+import { Link, useNavigate } from 'react-router-dom';
+import { getAllTeamsApi } from '../../services/teamService';
+import type { TeamDTO } from '../../services/teamService';
+import { Modal } from '../../components/Modal';
 import './AdminDashboardPage.css';
 
 export function AdminDashboardPage() {
   const [users, setUsers] = useState<UserDTO[]>([]);
   const [departments, setDepartments] = useState<DepartmentDTO[]>([]);
+  const [teams, setTeams] = useState<TeamDTO[]>([]);
+  const [isTeamModalOpen, setIsTeamModalOpen] = useState(false);
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
+  const navigate = useNavigate();
 
   useEffect(() => {
     async function fetchData() {
       try {
         setLoading(true);
-        const [usersData, deptsData] = await Promise.all([
+        const [usersData, deptsData, teamsData] = await Promise.all([
           getAllUsersApi(),
           getAllDepartmentsApi(),
+          getAllTeamsApi(),
         ]);
         setUsers(usersData);
         setDepartments(deptsData);
+        setTeams(teamsData);
       } catch (err: unknown) {
         if (err instanceof Error) {
           setError(err.message);
@@ -40,8 +48,6 @@ export function AdminDashboardPage() {
   const totalUsers = users.length;
   const activeUsers = users.filter((u) => u.isActive).length;
   const adminCount = users.filter((u) => u.role === 'ADMIN').length;
-  const leaderCount = users.filter((u) => u.role === 'LEADER').length;
-  const employeeCount = users.filter((u) => u.role === 'EMPLOYEE').length;
 
   return (
     <AdminLayout title="Tổng quan hệ thống">
@@ -53,7 +59,7 @@ export function AdminDashboardPage() {
         <div className="dashboard-grid">
           {/* Stat Cards */}
           <div className="stat-cards-container">
-            <div className="stat-card">
+            <div className="stat-card clickable" onClick={() => navigate('/admin/users')}>
               <div className="stat-icon-wrapper blue">
                 <Users size={24} />
               </div>
@@ -61,21 +67,27 @@ export function AdminDashboardPage() {
                 <span className="stat-label">Tổng người dùng</span>
                 <span className="stat-value">{totalUsers}</span>
                 <span className="stat-subtext">Hoạt động: {activeUsers} tài khoản</span>
+                {/* <span className="stat-trend up">
+                  <TrendingUp size={12} /> Tăng 5%
+                </span> */}
               </div>
             </div>
 
-            <div className="stat-card">
+            <div className="stat-card clickable" onClick={() => navigate('/admin/teams')}>
               <div className="stat-icon-wrapper indigo">
-                <Building2 size={24} />
+                <Users size={24} />
               </div>
               <div className="stat-info">
-                <span className="stat-label">Phòng ban</span>
-                <span className="stat-value">{departments.length}</span>
+                <span className="stat-label">Đội nhóm</span>
+                <span className="stat-value">{teams.length}</span>
                 <span className="stat-subtext">Đã phân bổ hệ thống</span>
+                {/* <span className="stat-trend up">
+                  <TrendingUp size={12} /> Tăng 12%
+                </span> */}
               </div>
             </div>
 
-            <div className="stat-card">
+            <div className="stat-card clickable" onClick={() => navigate('/admin/users')}>
               <div className="stat-icon-wrapper purple">
                 <Shield size={24} />
               </div>
@@ -83,10 +95,13 @@ export function AdminDashboardPage() {
                 <span className="stat-label">Quản trị viên (Admin)</span>
                 <span className="stat-value">{adminCount}</span>
                 <span className="stat-subtext">Toàn quyền hệ thống</span>
+                {/* <span className="stat-trend up">
+                  <TrendingUp size={12} /> Ổn định
+                </span> */}
               </div>
             </div>
 
-            <div className="stat-card">
+            {/* <div className="stat-card">
               <div className="stat-icon-wrapper emerald">
                 <UserCheck size={24} />
               </div>
@@ -106,7 +121,7 @@ export function AdminDashboardPage() {
                 <span className="stat-value">{employeeCount}</span>
                 <span className="stat-subtext">Thực thi task phòng ban</span>
               </div>
-            </div>
+            </div> */}
           </div>
 
           {/* Quick Actions & Recent Summary */}
@@ -186,6 +201,32 @@ export function AdminDashboardPage() {
           </div>
         </div>
       )}
+
+      {/* Team Modal */}
+      <Modal
+        isOpen={isTeamModalOpen}
+        onClose={() => setIsTeamModalOpen(false)}
+        title="Thông tin cơ bản các đội nhóm"
+      >
+        <div className="dept-summary-list" style={{ maxHeight: '400px', overflowY: 'auto', paddingRight: '4px' }}>
+          {teams.map((team) => (
+            <div key={team.id} className="dept-summary-item">
+              <div className="dept-item-icon">
+                <Users size={20} />
+              </div>
+              <div className="dept-item-details">
+                <span className="dept-item-name">{team.name}</span>
+                <span className="dept-item-desc">{team.description || 'Chưa có mô tả'}</span>
+              </div>
+            </div>
+          ))}
+          {teams.length === 0 && (
+            <div className="empty-state-text" style={{ padding: '24px', textAlign: 'center', color: '#64748b' }}>
+              Chưa có đội nhóm nào được tạo.
+            </div>
+          )}
+        </div>
+      </Modal>
     </AdminLayout>
   );
 }
