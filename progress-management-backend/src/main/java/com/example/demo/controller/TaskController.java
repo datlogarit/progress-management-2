@@ -29,7 +29,7 @@ public class TaskController {
     private final CommentService commentService;
 
     @PostMapping
-    @Authorize(permission = { PermissionEnum.TASK_CREATE }, scope = ScopeType.PROJECT, scopeParam = "projectId")
+    @Authorize(permission = { PermissionEnum.TASK_CREATE }, scope = ScopeType.TASK, scopeParam = "projectId")
     public ResponseEntity<TaskResponse> createTask(
             @Valid @RequestBody CreateTaskRequest request,
             @AuthenticationPrincipal UserPrincipal currentUser) {
@@ -38,7 +38,7 @@ public class TaskController {
     }
 
     @GetMapping
-    @Authorize(permission = { PermissionEnum.TASK_READ }, scope = ScopeType.PROJECT, scopeParam = "projectId")
+    @Authorize(permission = { PermissionEnum.TASK_READ }, scope = ScopeType.TASK, scopeParam = "projectId")
     public ResponseEntity<List<TaskResponse>> getTasks(
             @RequestParam(required = false) Long projectId,
             @RequestParam(required = false) Long assigneeId,
