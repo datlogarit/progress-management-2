@@ -36,7 +36,8 @@ import java.util.Optional;
 import java.util.stream.Collectors;
 
 /**
- * Implementation of {@link TaskService} managing task operations, status transitions, and notification triggers.
+ * Implementation of {@link TaskService} managing task operations, status
+ * transitions, and notification triggers.
  */
 @Slf4j
 @Service
@@ -232,11 +233,39 @@ public class TaskServiceImpl implements TaskService {
         boolean isAdmin = Boolean.TRUE.equals(user.getIsAdmin());
 
         if (!isAssignee && !isAdmin) {
-            throw new UnauthorizedException("Chỉ có người thực hiện (assignee) mới có quyền cập nhật trạng thái công việc");
+            throw new UnauthorizedException(
+                    "Chỉ có người thực hiện (assignee) mới có quyền cập nhật trạng thái công việc");
         }
 
         TaskStatus oldStatus = task.getStatus();
-        task.setStatus(request.getStatus());
+        TaskStatus newStatus = request.getStatus();
+
+        // Only Leader or Admin can cancel a task
+        if (newStatus == TaskStatus.CANCELLED) {
+            try {
+                validateProjectPermission(user, task.getProject());
+            } catch (UnauthorizedException ex) {
+                throw new CustomException("Chỉ có Trưởng dự án mới có quyền hủy công việc", HttpStatus.FORBIDDEN, "FORBIDDEN");
+            }
+        }
+
+        // If completed for > 1 hour, status cannot be changed anymore
+        if (oldStatus == TaskStatus.COMPLETED && task.getCompletedAt() != null) {
+            if (LocalDateTime.now().isAfter(task.getCompletedAt().plusHours(1))) {
+                if (newStatus != TaskStatus.COMPLETED) {
+                    throw new CustomException("Công việc đã hoàn thành quá 1 tiếng, không thể thay đổi trạng thái nữa.",
+                            HttpStatus.BAD_REQUEST, "TASK_STATUS_LOCKED");
+                }
+            }
+        }
+
+        if (newStatus == TaskStatus.COMPLETED && oldStatus != TaskStatus.COMPLETED) {
+            task.setCompletedAt(LocalDateTime.now());
+        } else if (newStatus != TaskStatus.COMPLETED && oldStatus == TaskStatus.COMPLETED) {
+            task.setCompletedAt(null);
+        }
+
+        task.setStatus(newStatus);
         Task updatedTask = taskRepository.save(task);
 
         String notificationMsg = String.format("Trạng thái công việc '%s' đã thay đổi từ %s sang %s",
@@ -366,6 +395,40 @@ public class TaskServiceImpl implements TaskService {
      */
     @Override
     @Transactional
+    public TaskResponse cancelTask(Long id, UserPrincipal currentUser) {
+        log.info("Cancelling task id: {} by user: {}", id, currentUser.getUsername());
+
+        Task task = taskRepository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("Task not found with id: " + id));
+
+        User user = userRepository.findById(currentUser.getId())
+                .orElseThrow(() -> new ResourceNotFoundException("User not found with id: " + currentUser.getId()));
+
+        validateProjectPermission(user, task.getProject());
+
+        TaskStatus oldStatus = task.getStatus();
+        task.setStatus(TaskStatus.CANCELLED);
+        task.setCompletedAt(null);
+        Task updatedTask = taskRepository.save(task);
+
+        String notificationMsg = String.format("Công việc '%s' đã bị hủy bởi Trưởng dự án", task.getTitle());
+        if (task.getAssignee() != null && !task.getAssignee().getId().equals(user.getId())) {
+            notificationService.sendNotification(
+                    task.getAssignee(),
+                    "Công việc đã bị hủy",
+                    notificationMsg,
+                    NotificationType.TASK_STATUS_CHANGED,
+                    task.getId());
+        }
+
+        return mapToTaskResponse(updatedTask);
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    @Override
+    @Transactional
     public void deleteTask(Long id, UserPrincipal currentUser) {
         log.info("Deleting task id: {} by user: {}", id, currentUser.getUsername());
 
@@ -383,7 +446,7 @@ public class TaskServiceImpl implements TaskService {
     /**
      * Validates that the user has project leadership or admin permissions.
      *
-     * @param user the user to validate
+     * @param user    the user to validate
      * @param project the project instance
      */
     private void validateProjectPermission(User user, Project project) {
@@ -433,6 +496,7 @@ public class TaskServiceImpl implements TaskService {
                 .assignee(assigneeDto)
                 .projectId(task.getProject().getId())
                 .projectName(task.getProject().getName())
+                .completedAt(task.getCompletedAt())
                 .createdAt(task.getCreatedAt())
                 .updatedAt(task.getUpdatedAt())
                 .build();

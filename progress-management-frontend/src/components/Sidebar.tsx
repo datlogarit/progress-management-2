@@ -79,19 +79,19 @@ export function Sidebar() {
             </NavLink>
 
             <NavLink 
-              to="/admin/departments" 
-              className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`}
-            >
-              <Building2 size={18} className="nav-icon" />
-              <span>Quản lý Phòng ban</span>
-            </NavLink>
-
-            <NavLink 
               to="/admin/teams" 
               className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`}
             >
               <UserCheck size={18} className="nav-icon" />
               <span>Quản lý Đội nhóm</span>
+            </NavLink>
+
+            <NavLink 
+              to="/admin/departments" 
+              className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`}
+            >
+              <Building2 size={18} className="nav-icon" />
+              <span>Quản lý Phòng ban</span>
             </NavLink>
 
             <NavLink 

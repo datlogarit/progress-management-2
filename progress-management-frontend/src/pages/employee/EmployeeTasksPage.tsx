@@ -3,7 +3,7 @@ import { Sidebar } from '../../components/Sidebar';
 import { Header } from '../../components/Header';
 import { TaskCard } from '../../components/leader/TaskCard';
 import { TaskDetailModal } from '../../components/leader/TaskDetailModal';
-import { getMyTasksApi, updateTaskStatusApi, type TaskDTO, type TaskStatus } from '../../services/taskService';
+import { getMyTasksApi, updateTaskStatusApi, isTaskStatusLocked, type TaskDTO, type TaskStatus } from '../../services/taskService';
 import toast from 'react-hot-toast';
 import { 
   Search, 
@@ -50,6 +50,18 @@ export function EmployeeTasksPage() {
   }, []);
 
   const handleStatusChange = async (taskId: number, status: TaskStatus) => {
+    const targetTask = tasks.find(t => t.id === taskId);
+    if (targetTask && isTaskStatusLocked(targetTask)) {
+      toast.error('Không thể thay đổi trạng thái. Công việc đã hoàn thành quá 1 tiếng.');
+      return;
+    }
+    if (status === 'COMPLETED' && targetTask?.status !== 'COMPLETED') {
+      const confirmed = window.confirm(
+        'Bạn đã chắc chắn muốn chuyển công việc sang trạng thái Hoàn thành? Bạn sẽ không thể thay đổi trạng thái sau 1 tiếng.'
+      );
+      if (!confirmed) return;
+    }
+
     try {
       const updated = await updateTaskStatusApi(taskId, status);
       setTasks(prev => prev.map(t => t.id === taskId ? updated : t));

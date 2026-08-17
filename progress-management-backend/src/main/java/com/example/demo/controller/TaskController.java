@@ -96,6 +96,15 @@ public class TaskController {
         return ResponseEntity.ok(response);
     }
 
+    @PatchMapping("/{id}/cancel")
+    @Authorize(permission = { PermissionEnum.TASK_DELETE }, scope = ScopeType.TASK, scopeParam = "id")
+    public ResponseEntity<TaskResponse> cancelTask(
+            @PathVariable Long id,
+            @AuthenticationPrincipal UserPrincipal currentUser) {
+        TaskResponse response = taskService.cancelTask(id, currentUser);
+        return ResponseEntity.ok(response);
+    }
+
     @DeleteMapping("/{id}")
     @Authorize(permission = { PermissionEnum.TASK_DELETE }, scope = ScopeType.TASK, scopeParam = "id")
     public ResponseEntity<Void> deleteTask(

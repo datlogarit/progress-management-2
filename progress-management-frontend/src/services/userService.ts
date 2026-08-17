@@ -1,7 +1,7 @@
 import type { UserDTO } from './authService';
 export type { UserDTO };
 
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || '/api/v1';
+import { API_BASE_URL } from '../config';
 
 function getAuthHeaders() {
   const token = localStorage.getItem('access_token');

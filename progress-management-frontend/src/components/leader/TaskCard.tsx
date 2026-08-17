@@ -1,4 +1,5 @@
 import type { TaskDTO, TaskStatus } from '../../services/taskService';
+import { isTaskStatusLocked } from '../../services/taskService';
 import { 
   Calendar, 
   User as UserIcon, 
@@ -9,7 +10,8 @@ import {
   AlertCircle, 
   XCircle,
   Edit2,
-  FolderKanban
+  FolderKanban,
+  Lock
 } from 'lucide-react';
 import { useState, useRef, useEffect } from 'react';
 import './TaskCard.css';
@@ -25,6 +27,7 @@ interface TaskCardProps {
 export function TaskCard({ task, onViewDetail, onEdit, onCancel, onStatusChange }: TaskCardProps) {
   const [showMenu, setShowMenu] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
+  const isLocked = isTaskStatusLocked(task);
 
   useEffect(() => {
     function handleClickOutside(event: MouseEvent) {
@@ -35,6 +38,19 @@ export function TaskCard({ task, onViewDetail, onEdit, onCancel, onStatusChange 
     document.addEventListener('mousedown', handleClickOutside);
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
+
+  const handleStatusClick = (newStatus: TaskStatus) => {
+    if (isLocked) return;
+    if (newStatus === 'COMPLETED' && task.status !== 'COMPLETED') {
+      const confirmed = window.confirm(
+        'Bạn đã chắc chắn muốn chuyển công việc sang trạng thái Hoàn thành? Bạn sẽ không thể thay đổi trạng thái sau 1 tiếng.'
+      );
+      if (!confirmed) return;
+    }
+    if (onStatusChange) {
+      onStatusChange(task.id, newStatus);
+    }
+  };
 
   const getStatusBadge = (status: TaskStatus) => {
     switch (status) {
@@ -127,20 +143,28 @@ export function TaskCard({ task, onViewDetail, onEdit, onCancel, onStatusChange 
                 <>
                   <div className="menu-divider" />
                   <div className="menu-label">Đổi trạng thái:</div>
-                  {task.status !== 'IN_PROGRESS' && (
-                    <button onClick={(e) => { e.stopPropagation(); setShowMenu(false); onStatusChange(task.id, 'IN_PROGRESS'); }}>
-                      Chuyển sang Đang làm
-                    </button>
-                  )}
-                  {task.status !== 'COMPLETED' && (
-                    <button onClick={(e) => { e.stopPropagation(); setShowMenu(false); onStatusChange(task.id, 'COMPLETED'); }}>
-                      Chuyển sang Hoàn thành
-                    </button>
-                  )}
-                  {task.status !== 'PENDING' && (
-                    <button onClick={(e) => { e.stopPropagation(); setShowMenu(false); onStatusChange(task.id, 'PENDING'); }}>
-                      Chuyển sang Chưa làm
-                    </button>
+                  {isLocked ? (
+                    <div style={{ padding: '6px 12px', fontSize: '11px', color: '#94a3b8', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                      <Lock size={12} /> Đã khóa (quá 1 tiếng)
+                    </div>
+                  ) : (
+                    <>
+                      {task.status !== 'IN_PROGRESS' && (
+                        <button onClick={(e) => { e.stopPropagation(); setShowMenu(false); handleStatusClick('IN_PROGRESS'); }}>
+                          Chuyển sang Đang làm
+                        </button>
+                      )}
+                      {task.status !== 'COMPLETED' && (
+                        <button onClick={(e) => { e.stopPropagation(); setShowMenu(false); handleStatusClick('COMPLETED'); }}>
+                          Chuyển sang Hoàn thành
+                        </button>
+                      )}
+                      {task.status !== 'PENDING' && (
+                        <button onClick={(e) => { e.stopPropagation(); setShowMenu(false); handleStatusClick('PENDING'); }}>
+                          Chuyển sang Chưa làm
+                        </button>
+                      )}
+                    </>
                   )}
                 </>
               )}

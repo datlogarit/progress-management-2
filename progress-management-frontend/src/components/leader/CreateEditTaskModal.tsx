@@ -65,7 +65,9 @@ export function CreateEditTaskModal({
     }
   });
 
-  const availableAssignees = Array.from(combinedMembersMap.values());
+  const availableAssignees = Array.from(combinedMembersMap.values()).filter(
+    (m) => String(m.id) !== String(user?.id)
+  );
 
   useEffect(() => {
     if (initialTask) {
@@ -122,6 +124,11 @@ export function CreateEditTaskModal({
         setError('Hạn hoàn thành phải ở thời điểm trong tương lai (sau thời điểm hiện tại)');
         return;
       }
+    }
+
+    if (assigneeId && String(assigneeId) === String(user?.id)) {
+      setError('Trưởng phòng không thể tự giao công việc cho chính mình');
+      return;
     }
 
     setLoading(true);

@@ -11,6 +11,7 @@ import {
   createTaskApi, 
   updateTaskApi, 
   updateTaskStatusApi, 
+  cancelTaskApi,
   type TaskDTO
 } from '../../services/taskService';
 import { getAllUsersApi, type UserDTO } from '../../services/userService';
@@ -123,7 +124,7 @@ export function LeaderTaskManagementPage() {
   const handleCancelTask = async (task: TaskDTO) => {
     if (!window.confirm(`Bạn có chắc chắn muốn hủy công việc "${task.title}"?`)) return;
     try {
-      const updated = await updateTaskStatusApi(task.id, 'CANCELLED');
+      const updated = await cancelTaskApi(task.id);
       setTasks(prev => prev.map(t => t.id === task.id ? updated : t));
       toast.success(`Đã hủy công việc "${task.title}"`);
     } catch (err: any) {

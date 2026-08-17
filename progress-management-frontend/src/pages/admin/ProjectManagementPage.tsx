@@ -50,7 +50,7 @@ function MemberSelectDropbar({
   const selectedUsers = options.filter((u) => selectedIds.includes(u.id));
 
   return (
-    <div className="form-group dropbar-group" ref={dropdownRef}>
+    <div className={`form-group dropbar-group ${isOpen ? 'open' : ''}`} ref={dropdownRef}>
       <label>{label}</label>
       <div 
         className={`dropbar-header ${isOpen ? 'active' : ''}`}
@@ -251,9 +251,15 @@ export function ProjectManagementPage() {
     setIsCreateModalOpen(true);
   };
 
-  // Filter users by selected department for the form
-  const availableUsersForDept = users.filter(u => u.departmentId === form.departmentId);
-  const availableLeadersForDept = availableUsersForDept;
+  // Filter users by selected department for the form:
+  // - Leaders list excludes users already selected as members (Thành viên thực hiện)
+  // - Members list excludes users already selected as leaders (Trưởng dự án)
+  const availableLeadersForDept = users.filter(
+    (u) => u.departmentId === form.departmentId && !form.memberIds.includes(u.id)
+  );
+  const availableUsersForDept = users.filter(
+    (u) => u.departmentId === form.departmentId && !form.managerIds.includes(u.id)
+  );
 
   const filteredProjects = projects.filter((p) =>
     p.name.toLowerCase().includes(searchQuery.toLowerCase()) ||

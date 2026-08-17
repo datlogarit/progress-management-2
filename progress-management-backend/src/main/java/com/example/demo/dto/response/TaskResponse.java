@@ -24,6 +24,7 @@ public class TaskResponse {
     private UserSummaryDto assignee;
     private Long projectId;
     private String projectName;
+    private LocalDateTime completedAt;
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
 }

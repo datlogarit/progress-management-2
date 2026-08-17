@@ -1,4 +1,4 @@
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || '/api/v1';
+import { API_BASE_URL } from '../config';
 
 function getAuthHeaders() {
   const token = localStorage.getItem('access_token');
@@ -29,8 +29,17 @@ export interface TaskDTO {
   assignee?: UserSummary;
   projectId: number;
   projectName: string;
+  completedAt?: string;
   createdAt: string;
   updatedAt: string;
+}
+
+export function isTaskStatusLocked(task?: TaskDTO | null): boolean {
+  if (!task || task.status !== 'COMPLETED' || !task.completedAt) return false;
+  const completedTime = new Date(task.completedAt).getTime();
+  const ONE_HOUR_MS = 60 * 60 * 1000;
+  // const ONE_HOUR_MS = 10000;
+  return Date.now() - completedTime > ONE_HOUR_MS;
 }
 
 export interface CommentDTO {
@@ -161,9 +170,22 @@ export async function updateTaskStatusApi(id: number, status: TaskStatus): Promi
     body: JSON.stringify({ status }),
   });
 
-  const data = await response.json();
+  const data = await response.json().catch(() => ({}));
   if (!response.ok) {
     throw new Error(data.message || 'Không thể cập nhật trạng thái công việc');
+  }
+  return data;
+}
+
+export async function cancelTaskApi(id: number): Promise<TaskDTO> {
+  const response = await fetch(`${API_BASE_URL}/tasks/${id}/cancel`, {
+    method: 'PATCH',
+    headers: getAuthHeaders(),
+  });
+
+  const data = await response.json().catch(() => ({}));
+  if (!response.ok) {
+    throw new Error(data.message || 'Không thể hủy công việc');
   }
   return data;
 }

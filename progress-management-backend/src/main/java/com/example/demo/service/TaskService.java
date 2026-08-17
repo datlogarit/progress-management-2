@@ -84,6 +84,15 @@ public interface TaskService {
     List<TaskResponse> getMyTasks(TaskStatus status, UserPrincipal currentUser);
 
     /**
+     * Cancels a task by setting its status to CANCELLED (Leader permission required).
+     *
+     * @param id task ID to cancel
+     * @param currentUser principal of the authenticated user
+     * @return updated task response
+     */
+    TaskResponse cancelTask(Long id, UserPrincipal currentUser);
+
+    /**
      * Deletes a task by its ID.
      *
      * @param id task ID to delete

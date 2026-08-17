@@ -569,37 +569,19 @@ export function UserManagementPage() {
             />
           </div>
 
-          <div className="form-row">
-            <div className="form-group flex-1">
-              <label>Vai trò hệ thống *</label>
-              <select
-                value={createForm.role}
-                onChange={(e) =>
-                  setCreateForm({
-                    ...createForm,
-                    role: e.target.value as 'LEADER' | 'EMPLOYEE',
-                  })
-                }
-              >
-                <option value="EMPLOYEE">EMPLOYEE (Nhân viên)</option>
-                <option value="LEADER">LEADER (Trưởng phòng)</option>
-              </select>
-            </div>
-
-            <div className="form-group flex-1">
-              <label>Phòng ban trực thuộc</label>
-              <select
-                value={createForm.departmentId}
-                onChange={(e) => setCreateForm({ ...createForm, departmentId: e.target.value })}
-              >
-                <option value="">-- Chưa gán phòng ban --</option>
-                {departments.map((d) => (
-                  <option key={d.id} value={d.id}>
-                    {d.name}
-                  </option>
-                ))}
-              </select>
-            </div>
+          <div className="form-group">
+            <label>Phòng ban trực thuộc</label>
+            <select
+              value={createForm.departmentId}
+              onChange={(e) => setCreateForm({ ...createForm, departmentId: e.target.value })}
+            >
+              <option value="">-- Chưa gán phòng ban --</option>
+              {departments.map((d) => (
+                <option key={d.id} value={d.id}>
+                  {d.name}
+                </option>
+              ))}
+            </select>
           </div>
 
           <div className="modal-actions">

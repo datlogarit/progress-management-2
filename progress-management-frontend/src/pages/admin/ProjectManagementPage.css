@@ -175,6 +175,11 @@
 /* Dropbar Multi-Select Component Styles */
 .dropbar-group {
   position: relative;
+  transition: margin-bottom 0.2s ease;
+}
+
+.dropbar-group.open {
+  margin-bottom: 230px;
 }
 
 .dropbar-header {
@@ -249,6 +254,7 @@
   right: 0;
   max-height: 220px;
   overflow-y: auto;
+  overscroll-behavior: contain;
   background-color: #ffffff;
   border: 1px solid var(--color-border, #e2e8f0);
   border-radius: var(--radius-button, 8px);
@@ -258,6 +264,19 @@
   display: flex;
   flex-direction: column;
   gap: 2px;
+}
+
+.dropbar-menu::-webkit-scrollbar {
+  width: 6px;
+}
+
+.dropbar-menu::-webkit-scrollbar-thumb {
+  background-color: #cbd5e1;
+  border-radius: 3px;
+}
+
+.dropbar-menu::-webkit-scrollbar-thumb:hover {
+  background-color: #94a3b8;
 }
 
 .dropbar-item {

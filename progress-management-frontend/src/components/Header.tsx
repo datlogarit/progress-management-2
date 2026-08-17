@@ -96,7 +96,14 @@ export function Header({ title }: HeaderProps) {
     setShowNotifications(false);
     
     if (item.taskId) {
-      const baseUrl = user?.role === 'LEADER' ? '/leader/tasks' : '/employee/tasks';
+      let baseUrl = '/home';
+      if (item.type === 'TASK_STATUS_CHANGED') {
+        baseUrl = '/leader/tasks';
+      } else if (item.type === 'TASK_ASSIGNED') {
+        baseUrl = '/home';
+      } else {
+        baseUrl = user?.role === 'LEADER' ? '/leader/tasks' : '/home';
+      }
       navigate(`${baseUrl}?taskId=${item.taskId}${item.commentId ? `&commentId=${item.commentId}` : ''}`);
     }
   };

@@ -4,7 +4,8 @@ import type { UserDTO } from '../../services/authService';
 import { 
   getTaskCommentsApi, 
   addCommentApi, 
-  updateTaskStatusApi 
+  updateTaskStatusApi,
+  isTaskStatusLocked
 } from '../../services/taskService';
 import { Modal } from '../Modal';
 import { 
@@ -15,7 +16,8 @@ import {
   Clock, 
   CheckCircle2, 
   AlertCircle, 
-  MessageSquare
+  MessageSquare,
+  Lock
 } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import './TaskDetailModal.css';
@@ -77,8 +79,22 @@ export function TaskDetailModal({
     }
   }, [highlightedCommentId, comments]);
 
+  const isLocked = isTaskStatusLocked(currentTask);
+
   const handleStatusChange = async (newStatus: TaskStatus) => {
     if (!currentTask) return;
+    if (isLocked) {
+      setActionError('Công việc đã hoàn thành quá 1 tiếng, không thể thay đổi trạng thái nữa.');
+      return;
+    }
+
+    if (newStatus === 'COMPLETED' && currentTask.status !== 'COMPLETED') {
+      const confirmed = window.confirm(
+        'Bạn đã chắc chắn muốn chuyển công việc sang trạng thái Hoàn thành? Bạn sẽ không thể thay đổi trạng thái sau 1 tiếng.'
+      );
+      if (!confirmed) return;
+    }
+
     setActionError(null);
     try {
       const updated = await updateTaskStatusApi(currentTask.id, newStatus);
@@ -129,6 +145,10 @@ export function TaskDetailModal({
                     : currentTask.status === 'PENDING'
                     ? 'Chưa làm'
                     : 'Đã hủy'}
+                </span>
+              ) : isLocked ? (
+                <span className="status-pill completed locked-badge" title="Đã khóa đổi trạng thái sau 1 tiếng kể từ khi hoàn thành" style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', opacity: 0.85 }}>
+                  <Lock size={12} /> Hoàn thành (Đã khóa)
                 </span>
               ) : (
                 <div className="status-selector-group">
