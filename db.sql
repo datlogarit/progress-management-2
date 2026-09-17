@@ -1,3 +1,5 @@
+-- this is real commit
+
 -- ============================================================
 -- HỆ THỐNG QUẢN LÝ CÔNG VIỆC PHÒNG BAN
 -- DDL PostgreSQL 
