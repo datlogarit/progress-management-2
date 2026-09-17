@@ -11,6 +11,7 @@ import { ProjectManagementPage } from './pages/admin/ProjectManagementPage';
 import { LeaderTaskManagementPage } from './pages/leader/LeaderTaskManagementPage';
 import { LeaderTeamPage } from './pages/leader/LeaderTeamPage';
 import { EmployeeDashboardPage } from './pages/employee/EmployeeDashboardPage';
+import { TestPage } from './pages/test/TestPage';
 import './index.css';
 
 interface ProtectedRouteProps {
@@ -69,6 +70,7 @@ function App() {
       <BrowserRouter>
         <Routes>
           <Route path="/login" element={<LoginPage />} />
+          <Route path="/test" element={<TestPage />} />
           
           {/* Default Route */}
           <Route

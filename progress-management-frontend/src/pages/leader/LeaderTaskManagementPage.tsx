@@ -10,7 +10,6 @@ import {
   getTasksApi, 
   createTaskApi, 
   updateTaskApi, 
-  updateTaskStatusApi, 
   cancelTaskApi,
   type TaskDTO
 } from '../../services/taskService';
